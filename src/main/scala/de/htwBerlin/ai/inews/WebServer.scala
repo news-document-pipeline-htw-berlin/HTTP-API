@@ -19,16 +19,11 @@ object WebServer extends App {
   val host = config.getString("http.host")
   val port = config.getInt("http.port")
 
-  // base route, serve index.html
-  /*val baseRoute = getFromFile("frontend/build/index.html")
-  // static route, serve static files (images, css,images, css, js) js)
-  val publicRoute = pathPrefix("static") (getFromDirectory("frontend/build/static"))*/
-
   val routes = new HttpRoutes()(executionContext)
 
   val bindingFuture = Http().bindAndHandle(routes.route, host, port)
 
-  println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
+  println(s"Server online at http://" + host + ":" + port + "/\nPress RETURN to stop...")
   StdIn.readLine // wait until user input
   bindingFuture
     .flatMap(_.unbind) // trigger unbinding from port
