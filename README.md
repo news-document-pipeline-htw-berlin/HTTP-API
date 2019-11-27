@@ -26,3 +26,7 @@ Momentan ist nur dir Route /api/articles/by-id erreichbar
 | `GET`    | `/api/articles/by-id`               |  `id`        |
 | `GET`    | `/api/articles/search`              |  `q` (search term),  `department`, `date`, `source` |
 | `GET`    | `/api/articles/trending`            | `department` |
+
+## Deployment
+
+Zum erstellen einer `.jar` Datei den Befehl `sbt clean assembly` ausführen. Die generierte Datei befindet sich unter `target/scala<SCALA_VERSION>/inews-backend-assembly-<VERSION>.jar`. 
