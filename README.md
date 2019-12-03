@@ -27,6 +27,14 @@ Momentan ist nur dir Route /api/articles/by-id erreichbar
 | `GET`    | `/api/articles/search`              |  `q` (search term),  `department`, `date`, `source` |
 | `GET`    | `/api/articles/trending`            | `department` |
 
+## Konfiguration
+
+Konfigurationen für den Webserver befinden sich in `src/main/resources/application.conf`.
+
 ## Deployment
 
-Zum erstellen einer `.jar` Datei den Befehl `sbt clean assembly` ausführen. Die generierte Datei befindet sich unter `target/scala<SCALA_VERSION>/inews-backend-assembly-<VERSION>.jar`. 
+Zum erstellen einer `.jar` Datei den Befehl `sbt clean assembly` ausführen. Die generierte Datei befindet sich unter `target/scala<SCALA_VERSION>/inews-backend-assembly-<VERSION>.jar`.
+
+Zum Deployment müssen die `.jar` Datei sowie `inewsbackend.service` auf den Server kopiert werden. Die `.service` Datei muss unter `/lib/systemd/system/` abgelegt werden. Der entsprechende Pfad für die `.jar` steht in der `.service` Datei.
+
+Der Server wird dann mit `systemctl start inewsbackend.service` gestartet. [Mehr Infos](https://wiki.archlinux.org/index.php/systemd) 

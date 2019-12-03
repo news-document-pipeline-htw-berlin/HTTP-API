@@ -25,7 +25,7 @@ class Articles()(implicit executionContext: ExecutionContext) {
       } ~
       pathPrefix("trending") {
         get {
-          ???
+          complete("success")
         }
       } ~
       pathPrefix("search") {
