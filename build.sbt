@@ -1,4 +1,4 @@
-name := "inews-backend"
+name := "inews-http-api"
 organization := "de.htwBerlin.ai"
 version := "0.1"
 scalaVersion := "2.13.1"

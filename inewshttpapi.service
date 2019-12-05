@@ -1,0 +1,17 @@
+[Unit]
+Description=I-News HTTP API 
+After=network.target
+
+[Service]
+Environment="JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/"
+Type=simple
+User="http_api"
+WorkingDirectory=/home/http_api
+ExecStart=/usr/lib/jvm/java-8-openjdk-amd64/bin/java -jar inews-http-api-assembly-0.1.jar
+Restart=always
+RestartSec=3
+
+
+[Install]
+WantedBy=multi-user.target
+
