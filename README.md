@@ -21,13 +21,13 @@ Momentan ist nur dir Route /api/articles/by-id erreichbar
 
 ## Routen (erster Entwurf)
 
-| Method | Route                               | Parameters   |
-| :----: |:------------------------------------| :-----------:|
-| `GET`  | `/api/articles/by-id`               | `id`         |
-| `GET`  | `/api/articles/by-author`           | `author`     |
-| `GET`  | `/api/articles/search`              | `q` (search term),  `department`, `date`, `source` |
-| `GET`  | `/api/articles/trending`            | `department` |
-| `GET`  | `/api/analytics/...`                | `...`        |
+| Method | Route                               | Parameters   | Notes |
+| :----: |:------------------------------------| :-----------:|:-----:|
+| `GET`  | `/api/articles/by-id`               | `id`         | ein spezieller Artikel | 
+| `GET`  | `/api/articles/newspapers`          | | gibt die Liste der verfügbaren Zeitungen zurück |
+| `GET`  | `/api/articles/authors`             | `q` (search term) | Autocomplete author wenn search term gesetzt, top 10/20/100 wenn kein search term gesetzt |
+| `GET`  | `/api/articles`                     | `q` (search term),  `department`, `date`, `newspaper`, `author`, `offset`, `count` | alles optionale Parameter, bei nicht gesetztem Suchterm werden die trending Article zurückgegeben  |
+| `GET`  | `/api/analytics/...`                | `...`        | TBD | 
 
 ## Konfiguration
 
