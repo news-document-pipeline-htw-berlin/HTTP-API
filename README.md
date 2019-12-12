@@ -23,9 +23,11 @@ Momentan ist nur dir Route /api/articles/by-id erreichbar
 
 | Method | Route                               | Parameters   |
 | :----: |:------------------------------------| :-----------:|
-| `GET`    | `/api/articles/by-id`               |  `id`        |
-| `GET`    | `/api/articles/search`              |  `q` (search term),  `department`, `date`, `source` |
-| `GET`    | `/api/articles/trending`            | `department` |
+| `GET`  | `/api/articles/by-id`               | `id`         |
+| `GET`  | `/api/articles/by-author`           | `author`     |
+| `GET`  | `/api/articles/search`              | `q` (search term),  `department`, `date`, `source` |
+| `GET`  | `/api/articles/trending`            | `department` |
+| `GET`  | `/api/analytics/...`                | `...`        |
 
 ## Konfiguration
 
