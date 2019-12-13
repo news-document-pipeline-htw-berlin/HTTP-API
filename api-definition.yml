@@ -1,0 +1,176 @@
+openapi: 3.0.0
+info:
+  description: Api documentation for news pipeline
+  version: 1.0.0
+  title: News Pipeline
+servers:
+  - url: http://localhost:8080/api
+
+tags:
+  - name: "articles"
+    description: "Retrieve news articles"
+
+paths:
+  /articles:
+    get:
+      tags:
+        - "articles"
+      summary: "Get news articles"
+      description: ""
+      operationId: "getArticles"
+      parameters:
+        - in: query
+          name: offset
+          schema:
+            type: integer
+          required: true
+          description: Numeric ID of the user to get
+        - in: query
+          name: count
+          schema:
+            type: integer
+          required: true
+          description: Number of articles to return
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: false
+          description: Search query to filter articles
+        - in: query
+          name: department
+          schema:
+            type: string
+          required: false
+          description: Department to filter articles
+        - in: query
+          name: author
+          schema:
+            type: string
+          required: false
+          description: Author to filter articles
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Article"
+        405:
+          description: "Invalid input"
+  /articles/{articleId}:
+    get:
+      tags:
+        - "articles"
+      summary: "Find article by id"
+      description: "Only single ID can be provided"
+      operationId: "findArticlesByStatus"
+      parameters:
+        - in: path
+          name: "articleId"
+          schema:
+            type: "integer"
+          required: true
+          description: "ID of article to return"
+
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Article not found"
+  /articles/newspapers:
+    get:
+      tags:
+        - "articles"
+      summary: "Get newspapers"
+      operationId: "getNewspapers"
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: string
+        405:
+          description: "Invalid input"
+  /articles/authors:
+    get:
+      tags:
+        - "articles"
+      summary: "Get authors"
+      description: "Get authors filtered by query. If no query is given return the top 20 authors"
+      operationId: "getAuthors"
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: false
+          description: Query to filter authors
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: string
+        405:
+          description: "Invalid input"
+
+components:
+  schemas:
+    Article:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        site:
+          type: "string"
+        title:
+          type: "string"
+        description:
+          type: "string"
+        intro:
+          type: "string"
+        text:
+          type: "string"
+        url:
+          type: "string"
+
+    Filter:
+      type: "object"
+      properties:
+        offset:
+          type: "integer"
+        count:
+          type: "integer"
+        query:
+          type: "string"
+        department:
+          type: "string"
+        date:
+          type: "string"
+          format: "date-time"
+        newspaper:
+          type: "string"
+        author:
+          type: "string"
+
+    ApiResponse:
+      type: "object"
+      properties:
+        code:
+          type: "integer"
+          format: "int32"
+        type:
+          type: "string"
+        message:
+          type: "string"
