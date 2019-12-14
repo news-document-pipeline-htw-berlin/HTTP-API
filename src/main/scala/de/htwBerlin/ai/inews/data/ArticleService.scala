@@ -6,7 +6,7 @@ import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSource
 import akka.stream.alpakka.elasticsearch.{ElasticsearchSourceSettings, ReadResult}
 import akka.stream.scaladsl.Sink
 import com.typesafe.config.ConfigFactory
-import de.htwBerlin.ai.inews.core.{Article, ArticleQueryDTO}
+import de.htwBerlin.ai.inews.core.Article
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
 
@@ -59,6 +59,4 @@ object ArticleService {
       .take(query.count)
       .runWith(Sink.seq[Article])
   }
-
-
 }

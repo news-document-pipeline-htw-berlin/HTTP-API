@@ -1,4 +1,4 @@
-package de.htwBerlin.ai.inews.core
+package de.htwBerlin.ai.inews.data
 
 final case class ArticleQueryDTO (
   offset: Int,

@@ -19,6 +19,6 @@ case class Article(
 object Article {
   // this is needed to serialize the article to JSON
   implicit val articleJsonFormat: RootJsonFormat[Article] =
-  // the 8 stands for 8 parameters of class Article
+    // the 10 stands for 10 parameters of class Article
     jsonFormat10(Article.apply)
 }
