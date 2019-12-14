@@ -1,28 +1,25 @@
 package de.htwBerlin.ai.inews.http.routes
 
-import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{RequestContext, Route, RouteResult}
+import akka.http.scaladsl.server.Route
 import de.htwBerlin.ai.inews.core.JsonFormat._
 import de.htwBerlin.ai.inews.data.{ArticleQueryDTO, ArticleService}
-import de.htwBerlin.ai.inews.http.CORSHandler
+import de.htwBerlin.ai.inews.http.handler.CORSHandler
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class Articles()(implicit executionContext: ExecutionContext) {
 
-  // this is needed to add headers to requests from different domains and avoid CORS-errors
-  // every route that should be reachable from a different domain needs to be initialized with getWithCors
-  // and completed with completeWithCors
-  private val corsHandler = new CORSHandler {}
+  // to make this API accessible from different domains (or different ports on the same domain) we need to use CORSHandler
+  // the CORSHandler adds multiple headers (especially 'Access-Control-Allow-Origin') to requests from different domains, as well as an OPTION route
+  // every (GET-)route that should be reachable from different domains needs to be initialized with getWithCors and completed with completeWithCors
 
   val route: Route = {
     pathPrefix("articles") {
       // /api/articles/{articleId}
       pathPrefix(Segment) { articleId =>
-        getWithCors {
-          completeWithCors(ArticleService.getById(articleId))
+        CORSHandler.getWithCors {
+          CORSHandler.completeWithCors(ArticleService.getById(articleId))
         }
       } ~
       // /api/articles/newspapers
@@ -40,7 +37,7 @@ class Articles()(implicit executionContext: ExecutionContext) {
         }
       } ~
       // /api/articles
-      getWithCors {
+      CORSHandler.getWithCors {
         parameters(
           "offset" ? 0,
           "count" ? 20,
@@ -49,22 +46,12 @@ class Articles()(implicit executionContext: ExecutionContext) {
           "author" ? ""
         ) { (offset, count, query, department, author) => {
             val articleQuery = ArticleQueryDTO(offset, count, query, department, author)
-            completeWithCors(ArticleService.getWithQuery(articleQuery))
+            val articles = ArticleService.getWithQuery(articleQuery)
+
+            CORSHandler.completeWithCors(articles)
           }
         }
       }
     }
-  }
-
-  def getWithCors(route: Route): RequestContext => Future[RouteResult] = {
-    options {
-      corsHandler.corsHandler(complete(StatusCodes.OK))
-    } ~ get {
-      route
-    }
-  }
-
-  def completeWithCors(content: ToResponseMarshallable): RequestContext => Future[RouteResult] = {
-    corsHandler.corsHandler(complete(content))
   }
 }
