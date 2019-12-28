@@ -12,6 +12,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // source: https://dzone.com/articles/handling-cors-in-akka-http
+// this is not used anymore
 
 trait CORSHandler {
   private val corsResponseHeaders = List(
@@ -47,7 +48,7 @@ trait CORSHandler {
 object CORSHandler {
   private val handler = new CORSHandler {}
 
-  def getWithCors(route: Route): RequestContext => Future[RouteResult] = {
+  def get(route: Route): RequestContext => Future[RouteResult] = {
     options {
       handler.corsHandler(complete(StatusCodes.OK))
     } ~ get {
@@ -55,7 +56,7 @@ object CORSHandler {
     }
   }
 
-  def completeWithCors(content: ToResponseMarshallable): RequestContext => Future[RouteResult] = {
+  def complete(content: ToResponseMarshallable): RequestContext => Future[RouteResult] = {
     handler.corsHandler(complete(content))
   }
 }
