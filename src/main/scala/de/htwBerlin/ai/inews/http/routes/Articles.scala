@@ -9,26 +9,28 @@ import scala.concurrent.ExecutionContext
 
 class Articles()(implicit executionContext: ExecutionContext) {
 
+  private val articleService = new ArticleService()(executionContext)
+
   final val route: Route = {
     pathPrefix("articles") {
-      // /api/articles/{articleId}
-      pathPrefix(Segment) { articleId =>
-        get {
-          complete(ArticleService.getById(articleId))
-        }
-      } ~
       // /api/articles/newspapers
       pathPrefix("newspapers") {
         get {
-          complete(ArticleService.getNewspapers)
+          complete(articleService.getNewspapers)
         }
       } ~
       // /api/articles/authors
       pathPrefix("authors") {
         get {
           parameters("query".?) { query =>
-            complete(ArticleService.getAuthors(query))
+            complete(articleService.getAuthors(query))
           }
+        }
+      } ~
+      // /api/articles/{articleId}
+      pathPrefix(Segment) { articleId =>
+        get {
+          complete(articleService.getById(articleId))
         }
       } ~
       // /api/articles
@@ -41,7 +43,7 @@ class Articles()(implicit executionContext: ExecutionContext) {
           "author" ? ""
         ) { (offset, count, query, department, author) => {
             val articleQuery = ArticleQueryDTO(offset, count, query, department, author)
-            val articles = ArticleService.getWithQuery(articleQuery)
+            val articles = articleService.getWithQuery(articleQuery)
 
             complete(articles)
           }
