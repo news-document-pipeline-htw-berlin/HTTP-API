@@ -21,4 +21,19 @@ object Article {
   implicit val articleJsonFormat: RootJsonFormat[Article] =
     // the 10 stands for 10 parameters of class Article
     jsonFormat10(Article.apply)
+
+  def empty: Article = {
+    new Article(
+      Some(""),
+      "",
+      "",
+      "",
+      Some(""),
+      "",
+      "",
+      "",
+      "",
+      Some("")
+    )
+  }
 }
