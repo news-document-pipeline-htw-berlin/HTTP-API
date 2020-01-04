@@ -39,18 +39,18 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         .size(query.count)
 
     query.query match {
-      case Some(q) => request = request.query(q)
-      case None =>
+      case Some(q) if !q.isEmpty => request = request.query(q)
+      case _ =>
     }
 
     query.department match {
-      case Some(d) => request = request.matchQuery("newsSite", d)
-      case None =>
+      case Some(d) if !d.isEmpty => request = request.matchQuery("newsSite", d)
+      case _ =>
     }
 
     query.author match {
-      case Some(a) => request = request.matchQuery("author", a)
-      case None =>
+      case Some(a) if !a.isEmpty => request = request.matchQuery("author", a)
+      case _ =>
     }
 
     client.execute {
