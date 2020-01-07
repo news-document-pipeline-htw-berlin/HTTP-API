@@ -12,13 +12,13 @@ object ArticleHitReader extends HitReader[Article] {
     Try(Article(
       Option(hit.sourceAsMap("description").toString),
       newsSite,
-      hit.sourceAsMap("title").toString,
-      hit.sourceAsMap("text").toString,
+      hit.sourceAsMap.getOrElse("title", "").toString,
+      hit.sourceAsMap.getOrElse("text", "").toString,
       Option(hit.sourceAsMap("intro").toString),
       "", //hit.sourceAsMap("short_url").toString,
-      hit.sourceAsMap("long_url").toString,
-      hit.sourceAsMap("mongo_id").toString,
-      hit.sourceAsMap("crawl_time").toString,
+      hit.sourceAsMap.getOrElse("long_url", "").toString,
+      hit.sourceAsMap.getOrElse("mongo_id", "").toString,
+      hit.sourceAsMap.getOrElse("crawl_time", "").toString,
       Option(hit.sourceAsMap.getOrElse("published_time", "").toString)
     ))
   }
