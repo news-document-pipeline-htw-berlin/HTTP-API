@@ -42,9 +42,19 @@ paths:
         - in: query
           name: department
           schema:
-            type: string
+            type: array
+            items:
+              type: string
           required: false
           description: Department to filter articles
+        - in: query
+          name: newspaper
+          schema:
+            type: array
+            items:
+              type: string
+          required: false
+          description: Newspaper to filter articles
         - in: query
           name: author
           schema:

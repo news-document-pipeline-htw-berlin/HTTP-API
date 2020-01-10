@@ -43,13 +43,16 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       case _ =>
     }
 
-    query.department match {
-      case Some(d) if !d.isEmpty => request = request.matchQuery("newsSite", d)
-      case _ =>
+    for (department <- query.departments) if (!department.isEmpty) {
+      request = request.matchQuery("departments", department)
+    }
+
+    for (newspaper <- query.newspapers) if (!newspaper.isEmpty) {
+      request = request.matchQuery("newsSite", newspaper)
     }
 
     query.author match {
-      case Some(a) if !a.isEmpty => request = request.matchQuery("author", a)
+      case Some(a) if !a.isEmpty => request = request.matchQuery("authors", a)
       case _ =>
     }
 
@@ -78,7 +81,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("authors", "author")
+          termsAgg("authors", "authors")
         }
     }.map { resp: Response[SearchResponse] =>
       resp.result.aggs.terms("authors").buckets.map(_.key)
