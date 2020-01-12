@@ -2,24 +2,35 @@ package de.htwBerlin.ai.inews.data
 
 import com.sksamuel.elastic4s.{Hit, HitReader}
 import de.htwBerlin.ai.inews.core.Article
+import org.joda.time.DateTime
 
 import scala.util.Try
 
 object ArticleHitReader extends HitReader[Article] {
   override def read(hit: Hit): Try[Article] = {
-    val newsSite = hit.sourceAsMap.getOrElse("news_site", hit.sourceAsMap.getOrElse("newsSite", "")).toString
+    val publishedTime = hit.sourceAsMap("published_time") match {
+      case Some(time: String) => DateTime.parse(time).getMillis
+      case _ => 0
+    }
 
     Try(Article(
-      Option(hit.sourceAsMap("description").toString),
-      newsSite,
-      hit.sourceAsMap.getOrElse("title", "").toString,
-      hit.sourceAsMap.getOrElse("text", "").toString,
-      Option(hit.sourceAsMap("intro").toString),
-      "", //hit.sourceAsMap("short_url").toString,
-      hit.sourceAsMap.getOrElse("long_url", "").toString,
-      hit.sourceAsMap.getOrElse("mongo_id", "").toString,
-      hit.sourceAsMap.getOrElse("crawl_time", "").toString,
-      Option(hit.sourceAsMap.getOrElse("published_time", "").toString)
+      hit.id,
+      hit.sourceAsMap("authors").asInstanceOf[List[String]],
+      DateTime.parse(hit.sourceAsMap("crawl_time").toString).getMillis,
+      Seq(), // TODO departments
+      hit.sourceAsMap("description").toString,
+      hit.sourceAsMap("image_links").asInstanceOf[List[String]],
+      hit.sourceAsMap("intro").toString,
+      hit.sourceAsMap("keywords").asInstanceOf[List[String]],
+      hit.sourceAsMap("lemmas").asInstanceOf[List[String]],
+      hit.sourceAsMap("links").asInstanceOf[List[String]],
+      hit.sourceAsMap("long_url").toString,
+      Seq(), // TODO mostRelevantLemmas
+      hit.sourceAsMap("newsSite").toString,
+      publishedTime,
+      hit.sourceAsMap("reading_time").asInstanceOf[Int],
+      hit.sourceAsMap("text").toString,
+      hit.sourceAsMap("title").toString
     ))
   }
 }

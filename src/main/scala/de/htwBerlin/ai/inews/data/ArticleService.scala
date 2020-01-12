@@ -26,7 +26,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   def getById(id: String): Future[Article] = {
     client.execute {
       search(indexName)
-        .matchQuery("mongo_id", id)
+        .matchQuery("_id", id)
     }.map { resp: Response[SearchResponse] =>
       resp.result.to[Article]
     }.map(articles => if (articles.nonEmpty) articles.head else Article.empty)

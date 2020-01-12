@@ -4,36 +4,49 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.RootJsonFormat
 
 case class Article(
-  description: Option[String],
-  news_site: String,
-  title: String,
+  id: String,
+  authors: Seq[String],
+  crawlTime: Long,
+  departments: Seq[String],
+  description: String,
+  imageLinks: Seq[String],
+  intro: String,
+  keywords: Seq[String],
+  lemmas: Seq[String],
+  links: Seq[String],
+  longUrl: String,
+  mostRelevantLemmas: Seq[String],
+  newsSite: String,
+  publishedTime: Long,
+  readingTime: Int,
   text: String,
-  intro: Option[String],
-  short_url: String,
-  long_url: String,
-  mongo_id: String,
-  crawl_time: String,
-  published_time: Option[String],
+  title: String
 )
 
 object Article {
   // this is needed to serialize the article to JSON
   implicit val articleJsonFormat: RootJsonFormat[Article] =
-    // the 10 stands for 10 parameters of class Article
-    jsonFormat10(Article.apply)
+    jsonFormat17(Article.apply)
 
   def empty: Article = {
     new Article(
-      Some(""),
       "",
+      Seq(),
+      0L,
+      Seq(),
       "",
+      Seq(),
       "",
-      Some(""),
+      Seq(),
+      Seq(),
+      Seq(),
       "",
+      Seq(),
       "",
+      0L,
+      0,
       "",
-      "",
-      Some("")
+      ""
     )
   }
 }
