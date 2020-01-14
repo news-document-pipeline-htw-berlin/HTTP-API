@@ -4,7 +4,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json.RootJsonFormat
 
 case class ArticleList(
-  resultCount: Int,
+  resultCount: Long,
   articles: Seq[Article]
 )
 

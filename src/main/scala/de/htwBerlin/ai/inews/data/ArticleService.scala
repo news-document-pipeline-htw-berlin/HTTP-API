@@ -43,12 +43,28 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       case _ =>
     }
 
-    for (department <- query.departments) if (!department.isEmpty) {
-      request = request.matchQuery("departments", department)
+    if (query.departments.nonEmpty) {
+      request = request.bool(
+        should(
+          {
+            for (department <- query.departments.filter(!_.isEmpty)) yield {
+              matchQuery("departments", department)
+            }
+          }
+        )
+      )
     }
 
-    for (newspaper <- query.newspapers) if (!newspaper.isEmpty) {
-      request = request.matchQuery("newsSite", newspaper)
+    if (query.newspapers.nonEmpty) {
+      request = request.bool(
+        should(
+          {
+            for (newspaper <- query.newspapers.filter(!_.isEmpty)) yield {
+              matchQuery("newsSite", newspaper)
+            }
+          }
+        )
+      )
     }
 
     query.author match {
@@ -59,8 +75,8 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     client.execute {
       request
     }.map { resp: Response[SearchResponse] =>
-      resp.result.to[Article]
-    }.map(articles => ArticleList(articles.size, articles))
+      ArticleList(resp.result.totalHits, resp.result.to[Article])
+    }
   }
 
   def getNewspapers: Future[Seq[String]] = {
@@ -77,12 +93,15 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
 
   def getAuthors(query: Option[String]): Future[Seq[String]] = {
     // TODO query
+
+    var request = search(indexName)
+      .size(0)
+      .aggs {
+        termsAgg("authors", "authors")
+      }
+
     client.execute {
-      search(indexName)
-        .size(0)
-        .aggs {
-          termsAgg("authors", "authors")
-        }
+      request
     }.map { resp: Response[SearchResponse] =>
       resp.result.aggs.terms("authors").buckets.map(_.key)
     }
