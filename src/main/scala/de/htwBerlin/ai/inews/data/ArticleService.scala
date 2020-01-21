@@ -43,7 +43,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       case _ =>
     }
 
-    if (query.departments.nonEmpty) {
+    if (query.departments.exists(!_.isEmpty)) {
       request = request.bool(
         should(
           {
@@ -55,7 +55,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       )
     }
 
-    if (query.newspapers.nonEmpty) {
+    if (query.newspapers.exists(!_.isEmpty)) {
       request = request.bool(
         should(
           {
