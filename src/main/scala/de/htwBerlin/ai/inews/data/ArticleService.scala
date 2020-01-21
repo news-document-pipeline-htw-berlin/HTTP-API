@@ -122,7 +122,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         .aggs {
           dateHistogramAggregation("word_occurence_over_time")
             .field("publishedTime")
-            .calendarInterval(DateHistogramInterval.Week)
+            .calendarInterval(DateHistogramInterval.Day)
         }
     }.map { resp: Response[SearchResponse] =>
       val occurrences = resp.result.aggs.dateHistogram("word_occurence_over_time")
