@@ -1,10 +1,11 @@
 package de.htwBerlin.ai.inews.data
 
 import com.sksamuel.elastic4s.http.JavaClient
-import com.sksamuel.elastic4s.requests.searches.SearchResponse
-import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties, Response}
+import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
+import com.sksamuel.elastic4s.{ElasticClient, ElasticDate, ElasticProperties, Response}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.typesafe.config.ConfigFactory
+import de.htwBerlin.ai.inews.core.Analytics.{Analytics, TermOccurrence}
 import de.htwBerlin.ai.inews.core.{Article, ArticleList}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -104,6 +105,36 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       request
     }.map { resp: Response[SearchResponse] =>
       resp.result.aggs.terms("authors").buckets.map(_.key)
+    }
+  }
+
+  def getAnalytics(q: String, timeFrom: Long, timeTo: Long): Future[Analytics] = {
+    client.execute {
+      search(indexName)
+        .bool(
+          must(
+            query(q),
+            rangeQuery("publishedTime")
+              .gt(ElasticDate.fromTimestamp(timeFrom))
+              .lt(ElasticDate.fromTimestamp(timeTo))
+          )
+        )
+        .aggs {
+          dateHistogramAggregation("word_occurence_over_time")
+            .field("publishedTime")
+            .calendarInterval(DateHistogramInterval.Week)
+        }
+    }.map { resp: Response[SearchResponse] =>
+      val occurrences = resp.result.aggs.dateHistogram("word_occurence_over_time")
+        .buckets.map(bucket => {
+        val data = bucket.dataAsMap
+        TermOccurrence(
+          data.getOrElse("key", 0).asInstanceOf[Long],
+          data.getOrElse("key_as_string", "").toString,
+          data.getOrElse("doc_count", 0).asInstanceOf[Int])
+      })
+
+      Analytics(resp.result.totalHits, q, timeFrom, timeTo, occurrences.filter(_.occurrences > 0))
     }
   }
 }

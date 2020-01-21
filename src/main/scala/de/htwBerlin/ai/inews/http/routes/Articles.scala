@@ -4,6 +4,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.htwBerlin.ai.inews.core.JsonFormat._
 import de.htwBerlin.ai.inews.data.{ArticleQueryDTO, ArticleService}
+import org.joda.time.DateTime
 
 import scala.concurrent.ExecutionContext
 
@@ -26,6 +27,18 @@ class Articles()(implicit executionContext: ExecutionContext) {
             complete(articleService.getAuthors(query))
           }
         }
+      } ~
+      pathPrefix("analytics") {
+        get (
+          parameters(
+            "query".as[String],
+            "timeFrom" ? 0L,
+            "timeTo" ? DateTime.now().getMillis
+          ) { (query, timeFrom, timeTo) =>
+            val analytics = articleService.getAnalytics(query, timeFrom, timeTo)
+            complete(analytics)
+          }
+        )
       } ~
       // /api/articles/{articleId}
       pathPrefix(Segment) { articleId =>
