@@ -8,9 +8,7 @@ import org.joda.time.DateTime
 
 import scala.concurrent.ExecutionContext
 
-class Articles()(implicit executionContext: ExecutionContext) {
-
-  private val articleService = new ArticleService()(executionContext)
+class Articles(articleService: ArticleService)(implicit executionContext: ExecutionContext) {
 
   final val route: Route = {
     pathPrefix("articles") {
@@ -27,18 +25,6 @@ class Articles()(implicit executionContext: ExecutionContext) {
             complete(articleService.getAuthors(query))
           }
         }
-      } ~
-      pathPrefix("analytics") {
-        get (
-          parameters(
-            "query".as[String],
-            "timeFrom" ? 0L,
-            "timeTo" ? DateTime.now().getMillis
-          ) { (query, timeFrom, timeTo) =>
-            val analytics = articleService.getAnalytics(query, timeFrom, timeTo)
-            complete(analytics)
-          }
-        )
       } ~
       // /api/articles/{articleId}
       pathPrefix(Segment) { articleId =>

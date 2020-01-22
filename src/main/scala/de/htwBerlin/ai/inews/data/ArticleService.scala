@@ -114,7 +114,8 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .bool(
           must(
-            query(q),
+            multiMatchQuery(q)
+              .fields("title", "description", "intro", "text"),
             rangeQuery("publishedTime")
               .gt(ElasticDate.fromTimestamp(timeFrom))
               .lt(ElasticDate.fromTimestamp(timeTo))
