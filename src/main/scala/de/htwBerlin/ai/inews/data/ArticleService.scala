@@ -93,18 +93,19 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   }
 
   def getAuthors(query: Option[String]): Future[Seq[String]] = {
-    // TODO query
-
-    var request = search(indexName)
-      .size(0)
-      .aggs {
-        termsAgg("authors", "authors")
-      }
-
     client.execute {
-      request
+      search(indexName)
+        .size(0)
+        .aggs {
+          termsAgg("authors", "authors")
+        }
     }.map { resp: Response[SearchResponse] =>
-      resp.result.aggs.terms("authors").buckets.map(_.key)
+      val res = resp.result.aggs.terms("authors").buckets.map(_.key)
+
+      query match {
+        case Some(author) => res.filter(_.toLowerCase.contains(author.toLowerCase))
+        case _ => res
+      }
     }
   }
 
@@ -120,12 +121,12 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           )
         )
         .aggs {
-          dateHistogramAggregation("word_occurence_over_time")
+          dateHistogramAggregation("word_occurrence_over_time")
             .field("publishedTime")
             .calendarInterval(DateHistogramInterval.Day)
         }
     }.map { resp: Response[SearchResponse] =>
-      val occurrences = resp.result.aggs.dateHistogram("word_occurence_over_time")
+      val occurrences = resp.result.aggs.dateHistogram("word_occurrence_over_time")
         .buckets.map(bucket => {
         val data = bucket.dataAsMap
         TermOccurrence(
