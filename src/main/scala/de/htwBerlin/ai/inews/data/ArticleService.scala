@@ -5,7 +5,7 @@ import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchRe
 import com.sksamuel.elastic4s.{ElasticClient, ElasticDate, ElasticProperties, Response}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.typesafe.config.ConfigFactory
-import de.htwBerlin.ai.inews.core.Analytics.{Analytics, TermOccurrence}
+import de.htwBerlin.ai.inews.core.Analytics.{Analytics, TermNotFoundException, TermOccurrence}
 import de.htwBerlin.ai.inews.core.{Article, ArticleList}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -127,6 +127,9 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
             .calendarInterval(DateHistogramInterval.Day)
         }
     }.map { resp: Response[SearchResponse] =>
+      if (resp.result.size == 0)
+        throw TermNotFoundException("Term not found! ")
+
       val occurrences = resp.result.aggs.dateHistogram("word_occurrence_over_time")
         .buckets.map(bucket => {
         val data = bucket.dataAsMap
