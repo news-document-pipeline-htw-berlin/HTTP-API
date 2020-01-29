@@ -1,7 +1,7 @@
 package de.htwBerlin.ai.inews.data
 
 import com.sksamuel.elastic4s.{Hit, HitReader}
-import de.htwBerlin.ai.inews.core.Article
+import de.htwBerlin.ai.inews.core.Article.Article
 import org.joda.time.DateTime
 
 import scala.util.Try

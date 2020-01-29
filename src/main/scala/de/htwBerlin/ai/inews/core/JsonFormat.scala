@@ -1,7 +1,9 @@
 package de.htwBerlin.ai.inews.core
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import de.htwBerlin.ai.inews.core.Analytics.{Analytics, TermOccurrence}
+import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas.Lemmas
+import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
+import de.htwBerlin.ai.inews.core.Article.{Article, ArticleList}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 
 object JsonFormat extends SprayJsonSupport with DefaultJsonProtocol {
@@ -14,6 +16,9 @@ object JsonFormat extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val termOccurrenceJsonFormat: RootJsonFormat[TermOccurrence] =
     jsonFormat3(TermOccurrence.apply)
 
-  implicit val analyticsJsonFormat: RootJsonFormat[Analytics] =
-    jsonFormat5(Analytics.apply)
+  implicit val termOccurrencesJsonFormat: RootJsonFormat[TermOccurrences] =
+    jsonFormat5(TermOccurrences.apply)
+
+  implicit val lemmasJsonFormat: RootJsonFormat[Lemmas] =
+    jsonFormat1(Lemmas.apply)
 }

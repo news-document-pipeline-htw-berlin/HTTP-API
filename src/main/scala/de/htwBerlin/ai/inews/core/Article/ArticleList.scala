@@ -1,4 +1,4 @@
-package de.htwBerlin.ai.inews.core
+package de.htwBerlin.ai.inews.core.Article
 
 import spray.json.DefaultJsonProtocol._
 import spray.json.RootJsonFormat

@@ -1,6 +1,6 @@
-package de.htwBerlin.ai.inews.core.Analytics
+package de.htwBerlin.ai.inews.core.Analytics.TermOccurrence
 
-case class Analytics(
+case class TermOccurrences(
   totalResult: Long,
   query: String,
   timeFrom: Long,

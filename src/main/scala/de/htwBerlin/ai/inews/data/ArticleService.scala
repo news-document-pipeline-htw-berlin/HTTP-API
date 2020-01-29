@@ -1,16 +1,19 @@
 package de.htwBerlin.ai.inews.data
 
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
 import com.sksamuel.elastic4s.{ElasticClient, ElasticDate, ElasticProperties, Response}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.typesafe.config.ConfigFactory
-import de.htwBerlin.ai.inews.core.Analytics.{Analytics, TermNotFoundException, TermOccurrence}
-import de.htwBerlin.ai.inews.core.{Article, ArticleList}
+import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas.Lemmas
+import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
+import de.htwBerlin.ai.inews.core.Article._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class ArticleService()(implicit executionContext: ExecutionContext) {
+
   // load config values
   private val config = ConfigFactory.load
   private final val host = config.getString("elasticSearch.host")
@@ -109,7 +112,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     }
   }
 
-  def getAnalytics(q: String, timeFrom: Long, timeTo: Long): Future[Analytics] = {
+  def getTermOccurrences(q: String, timeFrom: Long, timeTo: Long): Future[TermOccurrences] = {
     client.execute {
       search(indexName)
         .bool(
@@ -125,12 +128,15 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           dateHistogramAggregation("word_occurrence_over_time")
             .field("publishedTime")
             .calendarInterval(DateHistogramInterval.Day)
+            .minDocCount(0)
+            .missing(0)
+            .extendedBounds(ElasticDate.fromTimestamp(timeFrom), ElasticDate.fromTimestamp(timeTo))
         }
     }.map { resp: Response[SearchResponse] =>
       if (resp.result.size == 0)
         throw TermNotFoundException("Term not found! ")
 
-      val occurrences = resp.result.aggs.dateHistogram("word_occurrence_over_time")
+      val occurrences = resp.result.aggregations.dateHistogram("word_occurrence_over_time")
         .buckets.map(bucket => {
         val data = bucket.dataAsMap
         TermOccurrence(
@@ -139,7 +145,9 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           data.getOrElse("doc_count", 0).asInstanceOf[Int])
       })
 
-      Analytics(resp.result.totalHits, q, timeFrom, timeTo, occurrences.filter(_.occurrences > 0))
+      TermOccurrences(resp.result.totalHits, q, timeFrom, timeTo, occurrences)
     }
   }
+
+  def getMostRelevantLemmas(): Lemmas = ???
 }
