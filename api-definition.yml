@@ -4,11 +4,14 @@ info:
   version: 1.0.0
   title: News Pipeline
 servers:
-  - url: http://localhost:8080/api
+  - url: http://news.f4.htw-berlin.de:8081/api
+  - url: http://localhost:8080
 
 tags:
   - name: "articles"
     description: "Retrieve news articles"
+  - name: "analytics"
+    description: "View analytics for news articles"
 
 paths:
   /articles:
@@ -136,6 +139,63 @@ paths:
                 type: string
         405:
           description: "Invalid input"
+  /analytics/terms:
+    get:
+      tags:
+        - "analytics"
+      summary: "Get term occurrences per day"
+      operationId: "getTermOccurrences"
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: true
+          description: Term to get occurrences for
+        - in: query
+          name: timeFrom
+          schema:
+            type: integer
+          required: false
+          description: Start date to look for occurrences in milliseconds
+        - in: query
+          name: timeTo
+          schema:
+            type: integer
+          required: false
+          description: End date to look for occurrences in milliseconds
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/TermOccurrences"
+        404:
+          description: "Term not found in articles"
+        405:
+          description: "Invalid input"
+  /analytics/lemmas:
+    get:
+      tags:
+        - "analytics"
+      summary: "Get most relevant lemmas for the last 7 days"
+      operationId: "getMostRelevantLemmas"
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Lemma"
+        404:
+          description: "No articles found for last week"
+
+
 
 components:
   schemas:
@@ -156,6 +216,41 @@ components:
           type: "string"
         url:
           type: "string"
+
+    TermOccurrence:
+      type: "object"
+      properties:
+        date:
+          type: "integer"
+        dateString:
+          type: "string"
+        occurrences:
+          type: "integer"
+
+    TermOccurrences:
+      type: "object"
+      properties:
+        totalResult:
+          type: "integer"
+        query:
+          type: "string"
+        timeFrom:
+          type: "integer"
+        timeTo:
+          type: "integer"
+        occurrences:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/TermOccurrence"
+
+    Lemma:
+      type: "object"
+      properties:
+        lemma:
+          type: "string"
+        docCount:
+          type: "integer"
+
 
     Filter:
       type: "object"
