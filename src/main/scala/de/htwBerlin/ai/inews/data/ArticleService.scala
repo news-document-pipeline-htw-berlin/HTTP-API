@@ -1,12 +1,11 @@
 package de.htwBerlin.ai.inews.data
 
-import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperties, Response}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
-import com.sksamuel.elastic4s.{ElasticClient, ElasticDate, ElasticProperties, Response}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.typesafe.config.ConfigFactory
-import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas.Lemmas
+import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
 import de.htwBerlin.ai.inews.core.Article._
 
@@ -38,7 +37,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
 
   def getWithQuery(query: ArticleQueryDTO): Future[ArticleList] = {
     var request = search(indexName)
-        .sortByFieldDesc("published_time")
+        .sortByFieldDesc("publishedTime")
         .from(query.offset)
         .size(query.count)
 
@@ -125,7 +124,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           )
         )
         .aggs {
-          dateHistogramAggregation("word_occurrence_over_time")
+          dateHistogramAggregation("termOccurrence")
             .field("publishedTime")
             .calendarInterval(DateHistogramInterval.Day)
             .minDocCount(0)
@@ -136,7 +135,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       if (resp.result.size == 0)
         throw TermNotFoundException("Term not found! ")
 
-      val occurrences = resp.result.aggregations.dateHistogram("word_occurrence_over_time")
+      val occurrences = resp.result.aggregations.dateHistogram("termOccurrence")
         .buckets.map(bucket => {
         val data = bucket.dataAsMap
         TermOccurrence(
@@ -149,5 +148,28 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     }
   }
 
-  def getMostRelevantLemmas(): Lemmas = ???
+  def getMostRelevantLemmas: Future[Lemmas] = {
+    client.execute {
+      search(indexName)
+        .bool(
+          must(
+            rangeQuery("publishedTime")
+              .gt(ElasticDate.now.minus(7, Days))
+          )
+        )
+        .aggs(
+          termsAggregation("mostRelevantLemmas")
+            .field("mostRelevantLemmas")
+            .size(10)
+        )
+    }.map { resp: Response[SearchResponse] =>
+      if (resp.result.size == 0)
+        throw LemmasNotFoundException("No articles found. ")
+
+      val lemmas = resp.result.aggregations.terms("mostRelevantLemmas")
+        .buckets.map(bucket => Lemma(bucket.key, bucket.docCount))
+
+      Lemmas(lemmas)
+    }
+  }
 }
