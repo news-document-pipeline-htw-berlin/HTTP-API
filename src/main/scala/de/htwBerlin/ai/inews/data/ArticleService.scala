@@ -12,7 +12,6 @@ import de.htwBerlin.ai.inews.core.Article._
 import scala.concurrent.{ExecutionContext, Future}
 
 class ArticleService()(implicit executionContext: ExecutionContext) {
-
   // load config values
   private val config = ConfigFactory.load
   private final val host = config.getString("elasticSearch.host")
@@ -79,6 +78,18 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       request
     }.map { resp: Response[SearchResponse] =>
       ArticleList(resp.result.totalHits, resp.result.to[Article])
+    }
+  }
+
+  def getDepartments: Future[Seq[String]] = {
+    client.execute {
+      search(indexName)
+        .size(0)
+        .aggs {
+          termsAgg("departments", "departments")
+        }
+    }.map { resp: Response[SearchResponse] =>
+      resp.result.aggs.terms("departments").buckets.map(_.key)
     }
   }
 

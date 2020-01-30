@@ -11,7 +11,13 @@ import scala.concurrent.ExecutionContext
 class Articles(articleService: ArticleService)(implicit executionContext: ExecutionContext) {
 
   final val route: Route = {
+    // /api/articles/departments
     pathPrefix("articles") {
+      pathPrefix("departments") {
+        get {
+          complete(articleService.getDepartments)
+        }
+      } ~
       // /api/articles/newspapers
       pathPrefix("newspapers") {
         get {
