@@ -87,6 +87,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         .size(0)
         .aggs {
           termsAgg("departments", "departments")
+            .size(100)
         }
     }.map { resp: Response[SearchResponse] =>
       resp.result.aggs.terms("departments").buckets.map(_.key)
@@ -99,6 +100,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         .size(0)
         .aggs {
           termsAgg("newspapers", "newsSite")
+            .size(100) // optimistic
         }
     }.map { resp: Response[SearchResponse] =>
       resp.result.aggs.terms("newspapers").buckets.map(_.key)
@@ -111,6 +113,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         .size(0)
         .aggs {
           termsAgg("authors", "authors")
+            .size(10000)
         }
     }.map { resp: Response[SearchResponse] =>
       val res = resp.result.aggs.terms("authors").buckets.map(_.key)

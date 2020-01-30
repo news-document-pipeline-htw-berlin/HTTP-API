@@ -101,6 +101,23 @@ paths:
           description: "Invalid ID supplied"
         404:
           description: "Article not found"
+  /articles/departments:
+    get:
+      tags:
+        - "articles"
+      summary: "Get departments"
+      operationId: "getDepartments"
+      responses:
+        200:
+          description: "successful operation"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  type: string
+        405:
+          description: "Invalid input"
   /articles/newspapers:
     get:
       tags:
@@ -113,7 +130,9 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                type: "array"
+                items:
+                  type: string
         405:
           description: "Invalid input"
   /articles/authors:
@@ -136,7 +155,9 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                type: "array"
+                items:
+                  type: string
         405:
           description: "Invalid input"
   /analytics/terms:
