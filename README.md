@@ -30,7 +30,7 @@ The article routes provides all functionality that is needed to display the scra
 | `GET`  | `/api/articles/departments`         | -                  | Get all departments    |
 | `GET`  | `/api/articles/newspapers`          | -                  | Get all newspapers     |
 
-### Analytics
+#### Analytics
 
 The analytics routes aggregate additional information on the articles, needed to provide analysis functions.
 
