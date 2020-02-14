@@ -10,6 +10,7 @@ import scala.concurrent.ExecutionContext
 
 class HttpRoutes(implicit executionContext: ExecutionContext) {
 
+  // TODO dependency injection
   private val articleService = new ArticleService()(executionContext)
   private val articleRoute = new Articles(articleService)(executionContext)
   private val analyticsRoute = new Analytics(articleService)(executionContext)

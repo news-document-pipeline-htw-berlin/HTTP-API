@@ -1,8 +1,5 @@
 package de.htwBerlin.ai.inews.core.Article
 
-import spray.json.DefaultJsonProtocol._
-import spray.json.RootJsonFormat
-
 case class Article(
   id: String,
   authors: Seq[String],
@@ -24,10 +21,6 @@ case class Article(
 )
 
 object Article {
-  // this is needed to serialize the article to JSON
-  implicit val articleJsonFormat: RootJsonFormat[Article] =
-    jsonFormat17(Article.apply)
-
   def empty: Article = {
     new Article(
       "",

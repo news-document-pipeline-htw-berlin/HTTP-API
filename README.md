@@ -43,6 +43,10 @@ The analytics routes aggregate additional information on the articles, needed to
 
 All queries and logic needed to return Elasticsearch data is implemented in `src/main/scala/de/htwBerlin/ai/inews/data/ArticleService.scala`, utilizing `elastic4s`. Articles are parsed into Scala classes with the help of the `ArticleHitReader`. 
 
+## Running locally
+
+To run the API on your local machine you first have to connect to the Elasticsearch interface on the INews-Server via port forwarding. Therefore run `ssh -L 9200:localhost:9200 local@news.f4.htw-berlin.de`. After that the API should be able to access Elasticsearch.  
+
 ## Build
 
 To simply create an executable file bundled with all dependencies we use `sbt-assembly` plugin, which is added in `project/plugins.sbt`. 
