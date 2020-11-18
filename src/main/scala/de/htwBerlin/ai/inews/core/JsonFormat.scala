@@ -8,7 +8,7 @@ import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 
 object JsonFormat extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val articleJsonFormat: RootJsonFormat[Article] =
-    jsonFormat17(Article.apply)
+    jsonFormat17(Article.Article.apply)
 
   implicit val articleListJsonFormat: RootJsonFormat[ArticleList] =
     jsonFormat2(ArticleList.apply)
