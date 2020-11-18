@@ -18,7 +18,12 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
         post {
           userService.handleLogin()
         }
-      }
+      } ~
+        pathPrefix("signup") {
+          post {
+            userService.handleSignUp()
+          }
+        }
     }
   }
 }
