@@ -26,7 +26,19 @@ libraryDependencies ++= Seq(
 
     /* authentication */
     // https://mvnrepository.com/artifact/com.jason-goodwin/authentikat-jwt
-    "com.jason-goodwin" %% "authentikat-jwt" % "0.4.5"
+    "com.jason-goodwin" %% "authentikat-jwt" % "0.4.5",
+
+    /* Reactive MongoDB Connector */
+    "org.reactivemongo" %% "reactivemongo" % "1.0.0",
+
+    /* SLF4J backend, logback recommended by Akka docs */
+    /* https://stackoverflow.com/questions/42598459/failed-to-load-class-org-slf4j-impl-staticloggerbinder-message-error-from-slf4 */
+    "ch.qos.logback" % "logback-classic" % "1.1.3" % Runtime,
+
+    /* BCrypt for password */
+    "org.mindrot" % "jbcrypt" % "0.3m",
+
+
 )
 
 // https://stackoverflow.com/a/39058507

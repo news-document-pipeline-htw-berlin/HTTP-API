@@ -1,3 +1,3 @@
 package de.htwBerlin.ai.inews.user
 
-case class User(_id: Int, username: String, email: String, password: String)
+case class User(_id: Int, username: String, email: String, password: String, suggestions: Boolean, darkMode: Boolean)

@@ -1,15 +1,23 @@
 package de.htwBerlin.ai.inews.user
 
 import java.util.concurrent.TimeUnit
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.headers.HttpCookie
 import akka.http.scaladsl.server.{Directives, Route}
 import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
+import de.htwBerlin.ai.inews.MongoDBConnector
+import org.mindrot.jbcrypt.BCrypt
+import reactivemongo.api.{AsyncDriver, MongoConnection}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
+import org.json4s.DefaultFormats
+import org.json4s.native.Serialization.write
+import reactivemongo.api.bson.collection.BSONCollection
+import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONHandler, Macros}
+import reactivemongo.core.nodeset.Authenticate
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 
 final case class LoginRequest(user: String, password: String, rememberMe: Boolean)
@@ -30,9 +38,25 @@ object Error extends Enumeration {
 }
 
 class UserService()(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
+
   private val tokenExpiryPeriodInDays = 1
   private val secretKey = "secret"//SecureRandom.getInstanceStrong.toString
   private val header = JwtHeader("HS256")
+  val mongoUri = "mongodb://userdbAdmin:admin@localhost:27017/userdb" //?authMode=scram-sha1"
+  val driver = new AsyncDriver()
+  /*
+  val mongoUserName = "userdbAdmin"
+  val mongoPassword = "admin"
+  val dbCredentials = List(Authenticate("userdb", mongoUserName, Some(mongoPassword)))
+  */
+  val database = for {
+    uri <- MongoConnection.fromString(mongoUri)
+    con <- driver.connect(uri)
+    dn <- Future(uri.db.get)
+    db <- con.database(dn)
+  } yield db
+  implicit val formats: DefaultFormats = DefaultFormats
+  implicit val userHandler: BSONHandler[User] = Macros.handler[User]
 
   private def setClaims(user: String, id: Long, rememberMe: Boolean, darkMode: Boolean) = JwtClaimsSet(
     if (rememberMe)
@@ -44,6 +68,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   )
 
   private def checkCredentials(lr: LoginRequest): Error.Value = {
+    //val collection = UserDAO.dbFromConnection(database.map(_.connection))
     // TODO: get userdata from DB
     // val ud = dbConnector.getUserData(lr.user)
     // TODO: remove dummy data
@@ -95,12 +120,24 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   def handleSignUp(sur: SignUpRequest): Route = {
     validateSignUp(sur) match {
       case Error.OK => {
-        // TODO: create user entry in DB
-        // val ud = dbConnector.createUser(sur.username, sur.email, sur.password)
+        val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
+        val user = User(1, sur.username, hashedPassword, sur.email, false, false)
+        //Write user as BSONDocument
+        val bDoc = BSONDocument(
+          "id" -> user._id,
+          "username" -> user.username,
+          "password" -> user.password,
+          "email" -> user.email,
+          "suggestions" -> user.suggestions,
+          "darkMode" -> user.darkMode
+        )
+        val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+          Duration(1, SECONDS)))
+        MongoDBConnector.insertDocument(Await.result(collection, Duration(1, SECONDS)), bDoc)
         // TODO: remove dummy data
-        val ud = UserData(1, sur.username, sur.email, sur.password,
-          suggestions = true, darkMode = false)
-        complete(StatusCodes.OK, "A new account for " + ud.username + " was created.")
+        //val ud = UserData(1, sur.username, sur.email, sur.password,
+        //  suggestions = true, darkMode = false)
+        complete(StatusCodes.OK, "A new account for " + user.username + " was created.")
       }
       case Error.USERNAME_TAKEN => complete(StatusCodes.BadRequest -> "Username already taken.")
       case Error.EMAIL_TAKEN => complete(StatusCodes.BadRequest -> "Email is already in use.")
@@ -140,4 +177,11 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
         complete(StatusCodes.Unauthorized)
     }
   }
+
+  database.onComplete {
+    case resolution =>
+      println(s"DB resolution: $resolution")
+      driver.close()
+  }
+
 }
