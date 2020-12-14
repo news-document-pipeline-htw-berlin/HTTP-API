@@ -38,6 +38,7 @@ libraryDependencies ++= Seq(
     /* BCrypt for password */
     "org.mindrot" % "jbcrypt" % "0.3m",
 
+    "org.reactivemongo" % "reactivemongo-shaded-native" % "1.0.1-linux-x86-64" % Runtime
 
 )
 
