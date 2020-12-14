@@ -42,7 +42,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   private val tokenExpiryPeriodInDays = 1
   private val secretKey = "secret"//SecureRandom.getInstanceStrong.toString
   private val header = JwtHeader("HS256")
-  val mongoUri = "mongodb://userdbAdmin:admin@localhost:27017/userdb" //?authMode=scram-sha1"
+  val mongoUri = "mongodb://127.0.0.1:27017/userdb" //?authMode=scram-sha1"
   val driver = new AsyncDriver()
   /*
   val mongoUserName = "userdbAdmin"
@@ -178,10 +178,10 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     }
   }
 
-  database.onComplete {
+  /*database.onComplete {
     case resolution =>
       println(s"DB resolution: $resolution")
       driver.close()
-  }
+  }*/
 
 }
