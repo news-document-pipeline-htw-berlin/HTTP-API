@@ -13,7 +13,7 @@ import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 import org.json4s.DefaultFormats
 import org.json4s.native.Serialization.write
 import reactivemongo.api.bson.collection.BSONCollection
-import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONHandler, Macros}
+import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONHandler, BSONObjectID, Macros, `null`}
 import reactivemongo.core.nodeset.Authenticate
 
 import scala.concurrent.duration.{Duration, SECONDS}
@@ -58,7 +58,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   implicit val formats: DefaultFormats = DefaultFormats
   implicit val userHandler: BSONHandler[User] = Macros.handler[User]
 
-  private def setClaims(user: String, id: Long, rememberMe: Boolean, darkMode: Boolean) = JwtClaimsSet(
+  private def setClaims(user: String, id: BSONObjectID, rememberMe: Boolean, darkMode: Boolean) = JwtClaimsSet(
     if (rememberMe)
       Map("user" -> user, "id" -> id, "darkMode" -> darkMode)
     else
@@ -68,16 +68,19 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   )
 
   private def checkCredentials(lr: LoginRequest): Error.Value = {
-    //val collection = UserDAO.dbFromConnection(database.map(_.connection))
     // TODO: get userdata from DB
-    // val ud = dbConnector.getUserData(lr.user)
+    // val user = dbConnector.getUserData(lr.user)
     // TODO: remove dummy data
-    val ud = UserData(1, "admin", "admin@mail.com", "admin",
-      suggestions = true, darkMode = false)
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    val user = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user)
+    //val user = UserData(1, "admin", "admin@mail.com", "admin",
+    //  suggestions = true, darkMode = false)
 
-    if (ud == null)
+    if (user == null)
       return Error.USER_NOT_FOUND
-    if (lr.password != ud.password)
+
+    if(BCrypt.checkpw(lr.password, user.password))
       return Error.INVALID_PASSWORD
 
     Error.OK
@@ -87,7 +90,12 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     // TODO: check if username / email already exist in DB
     // if (dbConnector.existsUsername(sur.username)) return Error.USERNAME_TAKEN
     // if (dbConnector.existsEmail(sur.email)) return Error.EMAIL_TAKEN
-
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    if(MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.username) != null)
+      return Error.USERNAME_TAKEN
+    if(MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.email) != null)
+      return Error.EMAIL_TAKEN
     if (sur.password != sur.password_rep)
       return Error.PASSWORD_MISMATCH
 
@@ -99,11 +107,15 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
       case Error.OK => {
         // TODO: get userdata from DB
         // var userData = dbConnector.getUserData(lr.user)
-        // TODO: remove dummy data
-        val ud = UserData(1, "admin", "admin@mail.com", "admin",
-          suggestions = true, darkMode = false)
+        val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+          Duration(1, SECONDS)))
+        val user = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user)
 
-        val claims = setClaims(ud.username, ud.id, lr.rememberMe, ud.darkMode)
+        // TODO: remove dummy data
+        //val ud = UserData(1, "admin", "admin@mail.com", "admin",
+        //  suggestions = true, darkMode = false)
+
+        val claims = setClaims(user.username, user.id, lr.rememberMe, user.darkMode)
         val jwtToken = JsonWebToken(header, claims, secretKey)
 
         setCookie(HttpCookie("accessToken", value = jwtToken, path = Option("/"))) {
@@ -121,15 +133,14 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     validateSignUp(sur) match {
       case Error.OK => {
         val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
-        val user = User(1, sur.username, hashedPassword, sur.email, false, false)
+        //val user = User(1, sur.username, sur.email, hashedPassword, false, false)
         //Write user as BSONDocument
         val bDoc = BSONDocument(
-          "id" -> user._id,
-          "username" -> user.username,
-          "password" -> user.password,
-          "email" -> user.email,
-          "suggestions" -> user.suggestions,
-          "darkMode" -> user.darkMode
+          "username" -> sur.username,
+          "password" -> hashedPassword,
+          "email" -> sur.email,
+          "suggestions" -> false,
+          "darkMode" -> false
         )
         val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
           Duration(1, SECONDS)))
@@ -137,7 +148,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
         // TODO: remove dummy data
         //val ud = UserData(1, sur.username, sur.email, sur.password,
         //  suggestions = true, darkMode = false)
-        complete(StatusCodes.OK, "A new account for " + user.username + " was created.")
+        complete(StatusCodes.OK, "A new account for " + sur.username + " was created.")
       }
       case Error.USERNAME_TAKEN => complete(StatusCodes.BadRequest -> "Username already taken.")
       case Error.EMAIL_TAKEN => complete(StatusCodes.BadRequest -> "Email is already in use.")

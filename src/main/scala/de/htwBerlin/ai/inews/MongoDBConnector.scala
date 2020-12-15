@@ -1,13 +1,17 @@
 package de.htwBerlin.ai.inews
 
+import com.typesafe.sslconfig.ssl.FakeChainedKeyStore
+import de.htwBerlin.ai.inews.user.User
 import reactivemongo.api.bson.collection.BSONCollection
 import reactivemongo.api.{AsyncDriver, Cursor, DB, MongoConnection, bson}
-import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, Macros, document}
+import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONObjectID, Macros, document}
 import reactivemongo.api.commands.WriteResult
+import reactivemongo.api.bson.BSONObjectID
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.util.{Failure, Success, Try}
 
 object MongoDBConnector {
 
@@ -36,6 +40,19 @@ object MongoDBConnector {
     }
     writer.map(_ => {}) // do nothing with succes
   }
+
+  def findUserByUsername(collection: BSONCollection, username: String): User = {
+    val query = BSONDocument("username" -> username)
+    val userDoc = collection.find(query).one[BSONDocument]
+    User.UserReader.readDocument(Await.result(userDoc, Duration(1, SECONDS)).get).get
+  }
+
+  def findUserByEmail(collection: BSONCollection, email: String): User = {
+    val query = BSONDocument("email" -> email)
+    val userDoc = collection.find(query).one[BSONDocument]
+    User.UserReader.readDocument(Await.result(userDoc, Duration(1, SECONDS)).get).get
+  }
+
 
   /*def updateField(collection: BSONCollection, key: String, value: Any, id: Int): Future[Option[User]] = {
     val modifiedValue = key match {
