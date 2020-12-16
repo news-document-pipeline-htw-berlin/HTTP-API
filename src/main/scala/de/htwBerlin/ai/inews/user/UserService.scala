@@ -71,18 +71,19 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     // TODO: get userdata from DB
     // val user = dbConnector.getUserData(lr.user)
     // TODO: remove dummy data
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    val user = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user)
+    try {
+      val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+        Duration(1, SECONDS)))
+      val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user).get
+      val user = User.UserReader.readDocument(userDoc).get
+      if(BCrypt.checkpw(lr.password, user.password))
+        return Error.INVALID_PASSWORD
+    } catch {
+      case e: NoSuchElementException => return Error.USER_NOT_FOUND
+    }
+
     //val user = UserData(1, "admin", "admin@mail.com", "admin",
     //  suggestions = true, darkMode = false)
-
-    if (user == null)
-      return Error.USER_NOT_FOUND
-
-    if(BCrypt.checkpw(lr.password, user.password))
-      return Error.INVALID_PASSWORD
-
     Error.OK
   }
 
@@ -92,10 +93,18 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     // if (dbConnector.existsEmail(sur.email)) return Error.EMAIL_TAKEN
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
-    if(MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.username) != null)
+    try {
+      MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.username).get
       return Error.USERNAME_TAKEN
-    if(MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.email) != null)
+    } catch {
+      case e: NoSuchElementException => Error.OK
+    }
+    try {
+      MongoDBConnector.findUserByEmail(Await.result(collection, Duration(1, SECONDS)), sur.email).get
       return Error.EMAIL_TAKEN
+    } catch {
+      case e: NoSuchElementException => Error.OK
+    }
     if (sur.password != sur.password_rep)
       return Error.PASSWORD_MISMATCH
 
@@ -109,7 +118,8 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
         // var userData = dbConnector.getUserData(lr.user)
         val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
           Duration(1, SECONDS)))
-        val user = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user)
+        val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user).get
+        val user = User.UserReader.readDocument(userDoc).get
 
         // TODO: remove dummy data
         //val ud = UserData(1, "admin", "admin@mail.com", "admin",
@@ -137,8 +147,8 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
         //Write user as BSONDocument
         val bDoc = BSONDocument(
           "username" -> sur.username,
-          "password" -> hashedPassword,
           "email" -> sur.email,
+          "password" -> hashedPassword,
           "suggestions" -> false,
           "darkMode" -> false
         )

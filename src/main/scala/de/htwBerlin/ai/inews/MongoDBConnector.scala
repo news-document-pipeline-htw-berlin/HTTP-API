@@ -41,16 +41,16 @@ object MongoDBConnector {
     writer.map(_ => {}) // do nothing with succes
   }
 
-  def findUserByUsername(collection: BSONCollection, username: String): User = {
+  def findUserByUsername(collection: BSONCollection, username: String): Option[BSONDocument] = {
     val query = BSONDocument("username" -> username)
-    val userDoc = collection.find(query).one[BSONDocument]
-    User.UserReader.readDocument(Await.result(userDoc, Duration(1, SECONDS)).get).get
+    val doc = collection.find(query).one[BSONDocument]
+    Await.result(doc, Duration(1, SECONDS))
   }
 
-  def findUserByEmail(collection: BSONCollection, email: String): User = {
+  def findUserByEmail(collection: BSONCollection, email: String): Option[BSONDocument] = {
     val query = BSONDocument("email" -> email)
-    val userDoc = collection.find(query).one[BSONDocument]
-    User.UserReader.readDocument(Await.result(userDoc, Duration(1, SECONDS)).get).get
+    val doc = collection.find(query).one[BSONDocument]
+    Await.result(doc, Duration(1, SECONDS))
   }
 
 
