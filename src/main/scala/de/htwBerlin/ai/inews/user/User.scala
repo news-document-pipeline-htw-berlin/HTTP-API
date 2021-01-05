@@ -1,8 +1,8 @@
 package de.htwBerlin.ai.inews.user
 
-import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONObjectID}
+import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONObjectID}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 case class User(id: BSONObjectID, username: String, email: String, password: String, suggestions: Boolean, darkMode: Boolean)
 
@@ -16,5 +16,20 @@ object User {
       suggestions <- doc.getAsTry[Boolean]("suggestions")
       darkMode <- doc.getAsTry[Boolean]("darkMode")
     } yield User(id, username, email, password, suggestions, darkMode)
+  }
+
+  implicit object UserWriter extends BSONDocumentWriter[User] {
+    override def writeTry(user: User): Try[BSONDocument] = {
+      Success(
+        BSONDocument(
+          "_id" -> user.id,
+          "username" -> user.username,
+          "email" -> user.email,
+          "password" -> user.password,
+          "suggestions" -> user.suggestions,
+          "darkMode" -> user.darkMode
+        )
+      )
+    }
   }
 }

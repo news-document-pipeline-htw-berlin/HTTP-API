@@ -3,12 +3,15 @@ package de.htwBerlin.ai.inews.user
 import java.util.concurrent.TimeUnit
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.headers.HttpCookie
 import akka.http.scaladsl.server.{Directives, Route}
 import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
 import de.htwBerlin.ai.inews.MongoDBConnector
+import de.htwBerlin.ai.inews.user.User.UserWriter
+import de.htwBerlin.ai.inews.common.{Error, JWT}
 import org.mindrot.jbcrypt.BCrypt
-import reactivemongo.api.{AsyncDriver, MongoConnection}
+import reactivemongo.api.{AsyncDriver, DB, MongoConnection}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 import org.json4s.DefaultFormats
 import org.json4s.native.Serialization.write
@@ -19,29 +22,11 @@ import reactivemongo.core.nodeset.Authenticate
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-
-final case class LoginRequest(user: String, password: String, rememberMe: Boolean)
-final case class SignUpRequest(username: String, email: String, password: String, password_rep: String)
-final case class UserData(id: Long, username: String, email: String, password: String,
-                          suggestions: Boolean, darkMode: Boolean)
-
-trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
-  implicit val loginRequestFormat: RootJsonFormat[LoginRequest] = jsonFormat3(LoginRequest)
-  implicit val signUpRequestFormat: RootJsonFormat[SignUpRequest] = jsonFormat4(SignUpRequest)
-  implicit val userDataFormat: RootJsonFormat[UserData] = jsonFormat6(UserData)
-}
-
-object Error extends Enumeration {
-  type Error = Value
-  val OK, SERVER_ERROR, USER_NOT_FOUND, INVALID_PASSWORD,
-  PASSWORD_MISMATCH, USERNAME_TAKEN, EMAIL_TAKEN = Value
-}
-
+/**
+ * Service for handling user related requests
+ * @param executionContext executionContext
+ */
 class UserService()(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
-
-  private val tokenExpiryPeriodInDays = 1
-  private val secretKey = "secret"//SecureRandom.getInstanceStrong.toString
-  private val header = JwtHeader("HS256")
   val mongoUri = "mongodb://127.0.0.1:27017/userdb" //?authMode=scram-sha1"
   val driver = new AsyncDriver()
   /*
@@ -49,7 +34,8 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   val mongoPassword = "admin"
   val dbCredentials = List(Authenticate("userdb", mongoUserName, Some(mongoPassword)))
   */
-  val database = for {
+
+  val database: Future[DB] = for {
     uri <- MongoConnection.fromString(mongoUri)
     con <- driver.connect(uri)
     dn <- Future(uri.db.get)
@@ -58,144 +44,255 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
   implicit val formats: DefaultFormats = DefaultFormats
   implicit val userHandler: BSONHandler[User] = Macros.handler[User]
 
-  private def setClaims(user: String, id: BSONObjectID, rememberMe: Boolean, darkMode: Boolean) = JwtClaimsSet(
-    if (rememberMe)
-      Map("user" -> user, "id" -> id, "darkMode" -> darkMode)
-    else
-      Map("user" -> user, "id" -> id, "darkMode" -> darkMode,
-        "expiredAt" -> (System.currentTimeMillis() + TimeUnit.DAYS
-          .toMillis(tokenExpiryPeriodInDays)))
-  )
+  /**
+   * Extracts the ID string from a BSONObjectID
+   * @param id BSONObjectID
+   * @return string of ID
+   */
+  private def convertId(id: BSONObjectID): String = {
+    val str = id.toString()
+    str.substring(str.indexOf('(')+1, str.indexOf(')'))
+  }
 
-  private def checkCredentials(lr: LoginRequest): Error.Value = {
-    // TODO: get userdata from DB
-    // val user = dbConnector.getUserData(lr.user)
-    // TODO: remove dummy data
+  /**
+   * Creates a new user in database
+   * @param sur signup data
+   */
+  private def createUser(sur: SignUpRequest) = {
+    val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
+    val bDoc = BSONDocument(
+      "username" -> sur.username,
+      "email" -> sur.email,
+      "password" -> hashedPassword,
+      "suggestions" -> true,
+      "darkMode" -> false
+    )
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    MongoDBConnector.insertDocument(Await.result(collection, Duration(1, SECONDS)), bDoc)
+  }
+
+  /**
+   * Updates given user in database.
+   * @param user user
+   */
+  private def updateUser(user: User): Unit = {
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    MongoDBConnector.updateDocument(Await.result(collection, Duration(1, SECONDS)),
+      UserWriter.writeTry(user).get, user.id)
+  }
+
+  /**
+   * Deletes given user in database.
+   * @param id user's id
+   */
+  private def deleteUser(id: BSONObjectID): Unit = {
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    MongoDBConnector.deleteDocument(Await.result(collection, Duration(1, SECONDS)), id)
+  }
+
+  /**
+   * Finds a user by username and returns the corresponding object
+   * @param username username
+   * @return user object
+   */
+  private def getUserObjectByUsername(username: String) : User = {
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), username).get
+    User.UserReader.readDocument(userDoc).get
+  }
+
+  /**
+   * Finds a user by email and returns the corresponding object
+   * @param email email
+   * @return user object
+   */
+  private def getUserObjectByEmail(email: String) : User = {
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    val userDoc = MongoDBConnector.findUserByEmail(Await.result(collection, Duration(1, SECONDS)), email).get
+    User.UserReader.readDocument(userDoc).get
+  }
+
+  /**
+   * Finds a user by id and returns the corresponding object
+   * @param id id
+   * @return user object
+   */
+  private def getUserObjectById(id: String) : User = {
+    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
+      Duration(1, SECONDS)))
+    val userDoc = MongoDBConnector.findUserById(Await.result(collection, Duration(1, SECONDS)),
+      BSONObjectID.parse(id).get).get
+    User.UserReader.readDocument(userDoc).get
+  }
+
+  /**
+   * Checks if given username and password are valid.
+   * @param username username
+   * @param password password
+   * @return error value
+   */
+  private def validateCredentials(username: String, password: String): Error.Value = {
     try {
-      val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-        Duration(1, SECONDS)))
-      val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user).get
-      val user = User.UserReader.readDocument(userDoc).get
-      if(BCrypt.checkpw(lr.password, user.password))
+      val user = getUserObjectByUsername(username)
+      if(!BCrypt.checkpw(password, user.password))
         return Error.INVALID_PASSWORD
     } catch {
-      case e: NoSuchElementException => return Error.USER_NOT_FOUND
+      case _: NoSuchElementException =>
+        return Error.USER_NOT_FOUND
     }
-
-    //val user = UserData(1, "admin", "admin@mail.com", "admin",
-    //  suggestions = true, darkMode = false)
     Error.OK
   }
 
+  /**
+   * Checks if signup data is valid.
+   * @param sur signup data
+   * @return error value
+   */
   private def validateSignUp(sur: SignUpRequest): Error.Value = {
-    // TODO: check if username / email already exist in DB
-    // if (dbConnector.existsUsername(sur.username)) return Error.USERNAME_TAKEN
-    // if (dbConnector.existsEmail(sur.email)) return Error.EMAIL_TAKEN
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
     try {
-      MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), sur.username).get
+      getUserObjectByUsername(sur.username)
       return Error.USERNAME_TAKEN
     } catch {
-      case e: NoSuchElementException => Error.OK
+      case _: NoSuchElementException =>
+        Error.OK
     }
     try {
-      MongoDBConnector.findUserByEmail(Await.result(collection, Duration(1, SECONDS)), sur.email).get
+      getUserObjectByEmail(sur.email)
       return Error.EMAIL_TAKEN
     } catch {
-      case e: NoSuchElementException => Error.OK
+      case _: NoSuchElementException =>
+        Error.OK
     }
     if (sur.password != sur.password_rep)
       return Error.PASSWORD_MISMATCH
-
     Error.OK
   }
 
+  /**
+   * Handles a login request.
+   * @param lr login request
+   * @return set JWT cookie on success
+   */
   def handleLogin(lr: LoginRequest): Route = {
-    checkCredentials(lr) match {
-      case Error.OK => {
-        // TODO: get userdata from DB
-        // var userData = dbConnector.getUserData(lr.user)
-        val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-          Duration(1, SECONDS)))
-        val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), lr.user).get
-        val user = User.UserReader.readDocument(userDoc).get
-
-        // TODO: remove dummy data
-        //val ud = UserData(1, "admin", "admin@mail.com", "admin",
-        //  suggestions = true, darkMode = false)
-
-        val claims = setClaims(user.username, user.id, lr.rememberMe, user.darkMode)
-        val jwtToken = JsonWebToken(header, claims, secretKey)
-
+    val e = validateCredentials(lr.user, lr.password)
+    e match {
+      case Error.OK =>
+        val user = getUserObjectByUsername(lr.user)
+        val jwtToken = JWT.generateToken(user.username, convertId(user.id), rememberMe = lr.rememberMe,
+          darkMode = user.darkMode)
         setCookie(HttpCookie("accessToken", value = jwtToken, path = Option("/"))) {
-          complete(StatusCodes.OK -> "Logged in successfully.")
+          complete(StatusCodes.OK, "Logged in successfully.")
         }
-      }
-      case Error.USER_NOT_FOUND => complete(StatusCodes.BadRequest -> "User " + lr.user + " does not exist.")
-      case Error.INVALID_PASSWORD => complete(StatusCodes.BadRequest -> "Invalid password.")
-      case Error.SERVER_ERROR => complete(StatusCodes.InternalServerError -> "Internal Server Error.")
+      case _ => Error.processError(e)
     }
   }
 
-  // TODO: fetch user data from database, save new user, error handling
+  /**
+   * Handles a signup request.
+   * @param sur signup request
+   * @return status code
+   */
   def handleSignUp(sur: SignUpRequest): Route = {
-    validateSignUp(sur) match {
+    val e = validateSignUp(sur)
+    e match {
       case Error.OK => {
-        val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
-        //val user = User(1, sur.username, sur.email, hashedPassword, false, false)
-        //Write user as BSONDocument
-        val bDoc = BSONDocument(
-          "username" -> sur.username,
-          "email" -> sur.email,
-          "password" -> hashedPassword,
-          "suggestions" -> false,
-          "darkMode" -> false
-        )
-        val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-          Duration(1, SECONDS)))
-        MongoDBConnector.insertDocument(Await.result(collection, Duration(1, SECONDS)), bDoc)
-        // TODO: remove dummy data
-        //val ud = UserData(1, sur.username, sur.email, sur.password,
-        //  suggestions = true, darkMode = false)
+        createUser(sur)
         complete(StatusCodes.OK, "A new account for " + sur.username + " was created.")
       }
-      case Error.USERNAME_TAKEN => complete(StatusCodes.BadRequest -> "Username already taken.")
-      case Error.EMAIL_TAKEN => complete(StatusCodes.BadRequest -> "Email is already in use.")
-      case Error.PASSWORD_MISMATCH => complete(StatusCodes.BadRequest -> "Password mismatch.")
-      case Error.SERVER_ERROR => complete(StatusCodes.InternalServerError -> "Internal Server Error.")
+      case _ =>
+        Error.processError(e)
     }
   }
 
-  def getUserData(id: Long) : Route = {
-    // TODO: get user from DB
-    // val ud = dbConnector.getUserData(id)
-    // TODO: remove dummy data
-    val ud = UserData(1, "admin", "admin@mail.com", "password",
-      suggestions = true, darkMode = false)
-    if (ud == null)
-      complete(StatusCodes.NotFound, "User with id " + id + " does not exist.")
-    complete(StatusCodes.OK, ud)
+  /**
+   * Handles a request to get user data.
+   * @param id id of user
+   * @return user in body on success
+   */
+  def getUserData(id: String) : Route = {
+    try {
+      val user = getUserObjectById(id)
+      complete(BSONDocument.pretty(UserWriter.writeTry(user).get))
+    } catch {
+      case e: NoSuchElementException =>
+        complete(StatusCodes.NotFound, "User with id '" + id + "' could not be found.")
+    }
   }
 
-  def updateUserData(ud: UserData) : Route = {
-    // TODO: update user in DB (make sure username CANNOT be changed!)
-    // if (!dbConnector.existsUserId(ud.id))
-    //    complete(StatusCodes.NotFound, "User with id " + id + " does not exist.")
-    // dbConnector.updateUserData(ud)
-    complete(StatusCodes.OK, "User Data for " + ud.username + " has been updated.")
+  /**
+   * Handles a request to update user data.
+   * @param ud user data
+   * @return status code
+   */
+  def updateUserData(ud: UserData, id: String) : Route = {
+    if (!id.equals(ud._id)) {
+      complete(StatusCodes.Unauthorized, "Unauthorized to alter user data.")
+    }
+    try {
+      val user = getUserObjectById(ud._id)
+      updateUser(User(user.id, user.username, ud.email, user.password, ud.suggestions, ud.darkMode))
+      complete(StatusCodes.OK, "User Data for '" + ud.username + "' has been updated.")
+    } catch {
+      case e: NoSuchElementException =>
+        complete(StatusCodes.NotFound, "User with id '" + ud._id + "' could not be found.")
+    }
+  }
+
+  /**
+   * Handles a request to update a user's password.
+   * @param cpr change password request
+   * @return status code
+   */
+  def updatePassword(cpr: ChangePasswordRequest) : Route = {
+    val e = validateCredentials(cpr.user, cpr.oldPW)
+    e match {
+      case Error.OK => {
+        if (!cpr.newPW.equals(cpr.repPW)) {
+          return complete(StatusCodes.BadRequest, "Password mismatch.")
+        }
+        val hashedPassword = BCrypt.hashpw(cpr.newPW, BCrypt.gensalt())
+        try {
+          val user = getUserObjectByUsername(cpr.user)
+          updateUser(User(user.id, user.username, user.email, hashedPassword, user.suggestions, user.darkMode))
+          complete(StatusCodes.OK, "Password for '" + cpr.user + "' has been changed.")
+        } catch {
+          case e: NoSuchElementException =>
+            complete(StatusCodes.NotFound, "User '" + cpr.user + "' could not be found.")
+        }
+    }
+      case _ =>
+        Error.processError(e)
+    }
   }
 
   def isAuth(lr: LoginRequest) : Route = {
-    checkCredentials(lr) match {
+    Error.processError(validateCredentials(lr.user, lr.password))
+  }
+
+  /**
+   * Handles a delete user request.
+   * @param ar auth data
+   * @return status code
+   */
+  def deleteUser(ar: AuthRequest) : Route = {
+    val e = validateCredentials(ar.user, ar.password)
+    e match {
       case Error.OK =>
-        complete(StatusCodes.OK)
-      case Error.USER_NOT_FOUND =>
-        complete(StatusCodes.NotFound)
-      case Error.SERVER_ERROR =>
-        complete(StatusCodes.InternalServerError)
-      case Error.INVALID_PASSWORD =>
-        complete(StatusCodes.Unauthorized)
+        try {
+          val user = getUserObjectByUsername(ar.user)
+          deleteUser(user.id)
+          complete(StatusCodes.OK, "Account for " + ar.user + " and all its data has been deleted.")
+        } catch {
+          case e: NoSuchElementException =>
+            complete(StatusCodes.NotFound, "User '" + ar.user + "' could not be found.")
+        }
+      case _ =>
+        Error.processError(e)
     }
   }
 

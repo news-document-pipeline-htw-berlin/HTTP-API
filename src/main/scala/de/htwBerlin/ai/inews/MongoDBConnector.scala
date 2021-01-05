@@ -41,6 +41,12 @@ object MongoDBConnector {
     writer.map(_ => {}) // do nothing with succes
   }
 
+  def findUserById(collection: BSONCollection, id: BSONObjectID): Option[BSONDocument] = {
+    val query = BSONDocument("_id" -> id)
+    val doc = collection.find(query).one[BSONDocument]
+    Await.result(doc, Duration(1, SECONDS))
+  }
+
   def findUserByUsername(collection: BSONCollection, username: String): Option[BSONDocument] = {
     val query = BSONDocument("username" -> username)
     val doc = collection.find(query).one[BSONDocument]
@@ -74,15 +80,15 @@ object MongoDBConnector {
     result.map(_.result[User])
   }*/
 
-  def updateDocument(collection: BSONCollection, modifier: BSONDocument, id: Int) = {
-    val selector = BSONDocument("id" -> id)
+  def updateDocument(collection: BSONCollection, modifier: BSONDocument, id: BSONObjectID) = {
+    val selector = BSONDocument("_id" -> id)
     val futureUpdate = collection.update.one(
       q = selector, u = modifier, upsert = false, multi = false
     )
   }
 
-  def deleteDocument(collection: BSONCollection, id: Int) = {
-    val selector = BSONDocument("id" -> id)
+  def deleteDocument(collection: BSONCollection, id: BSONObjectID) = {
+    val selector = BSONDocument("_id" -> id)
     val futureRemove = collection.delete.one(selector)
     futureRemove.onComplete {
       case Failure(e) => throw e
