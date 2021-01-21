@@ -55,7 +55,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
 
   def getWithQuery(query: ArticleQueryDTO): Future[ArticleList] = {
     var request = search(indexName)
-        .sortByFieldDesc("publishedTime")
+        .sortByFieldDesc("published_time")
         .from(query.offset)
         .size(query.count)
 

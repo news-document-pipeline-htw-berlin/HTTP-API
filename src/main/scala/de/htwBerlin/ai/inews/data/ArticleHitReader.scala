@@ -14,7 +14,7 @@ object ArticleHitReader extends HitReader[Article] {
         case authors if authors == null => Seq()
         case authors => authors.asInstanceOf[List[String]]
       },
-      hit.sourceAsMap.getOrElse("crawlTime", 0) match {
+      hit.sourceAsMap.getOrElse("crawl_time", 0) match {
         case time: String => DateTime.parse(time).getMillis
         case _ => 0
       },
@@ -26,7 +26,7 @@ object ArticleHitReader extends HitReader[Article] {
         case description: String => description
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("imageLinks", Seq()) match {
+      hit.sourceAsMap.getOrElse("image_links", Seq()) match {
         case imageLinks if imageLinks == null => Seq()
         case imageLinks => imageLinks.asInstanceOf[List[String]]
       },
@@ -38,7 +38,7 @@ object ArticleHitReader extends HitReader[Article] {
         case keywords if keywords == null => Seq()
         case keywords => keywords.asInstanceOf[List[String]]
       },
-      hit.sourceAsMap.getOrElse("lemmas", Seq()) match {
+      hit.sourceAsMap.getOrElse("lemmatizer", Seq()) match {
         case lemmas if lemmas == null => Seq()
         case lemmas => lemmas.asInstanceOf[List[String]]
       },
@@ -46,25 +46,25 @@ object ArticleHitReader extends HitReader[Article] {
         case links if links == null => Seq()
         case links => links.asInstanceOf[List[String]]
       },
-      hit.sourceAsMap.getOrElse("longUrl", "") match {
+      hit.sourceAsMap.getOrElse("long_url", "") match {
         case longUrl: String => longUrl
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("mostRelevantLemmas", Seq()) match {
+      hit.sourceAsMap.getOrElse("lemmatizer", Seq()) match {
         case mostRelevantLemmas if mostRelevantLemmas == null => Seq()
         case mostRelevantLemmas => mostRelevantLemmas.asInstanceOf[List[String]]
       },
-      hit.sourceAsMap.getOrElse("newsSite", "") match {
+      hit.sourceAsMap.getOrElse("news_site", "") match {
         case newsSite: String => newsSite
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("publishedTime", 0) match {
+      hit.sourceAsMap.getOrElse("published_time", 0) match {
         case time: String => DateTime.parse(time).getMillis
         case _ => 0
       },
-      hit.sourceAsMap.getOrElse("readingTime", 0) match {
-        case readingTime: Int => readingTime
-        case _ => 0
+      hit.sourceAsMap.getOrElse("read_time", 0.0) match {
+        case readingTime: Double => readingTime
+        case _ => 0.0
       },
       hit.sourceAsMap.getOrElse("text", "") match {
         case text: String => text
@@ -73,6 +73,22 @@ object ArticleHitReader extends HitReader[Article] {
       hit.sourceAsMap.getOrElse("title", "") match {
         case title: String => title
         case _ => ""
+      },
+        hit.sourceAsMap.getOrElse("entities", Seq()) match {
+        case entities if entities == null => Seq()
+        case entities => entities.asInstanceOf[List[String]]
+      },
+      hit.sourceAsMap.getOrElse("keywords_extracted", Seq()) match {
+        case keywordsExtracted if keywordsExtracted == null => Seq()
+        case keywordsExtracted => keywordsExtracted.asInstanceOf[List[String]]
+      },
+      hit.sourceAsMap.getOrElse("short_url", "") match {
+        case shortUrl: String => shortUrl
+        case _ => ""
+      },
+      hit.sourceAsMap.getOrElse("sentimens", 0.0) match {
+        case sentiments: Double => sentiments
+        case _ => 0.0
       }
     ))
   }
