@@ -8,6 +8,8 @@ import com.typesafe.config.ConfigFactory
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
 import de.htwBerlin.ai.inews.core.Article._
+import de.htwBerlin.ai.inews.user.{User, UserService}
+import reactivemongo.api.bson.BSONObjectID
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -25,6 +27,10 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   // this is needed to serialize ES results into Articles
   implicit val hitReader: ArticleHitReader.type = ArticleHitReader
 
+  final case class KeywordsQuery (
+                                 keywords: Iterable[String]
+                                 )
+
   def getById(id: String): Future[Article] = {
     client.execute {
       search(indexName)
@@ -32,6 +38,19 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     }.map { resp: Response[SearchResponse] =>
       resp.result.to[Article]
     }.map(articles => if (articles.nonEmpty) articles.head else Article.empty)
+  }
+
+  def getArticlesByKeywords(keywords: Map[String, Int], limit: Int): Future[ArticleList] = {
+    client.execute {
+      search(indexName)
+        .bool(
+          should(
+            matchQuery("keywords", keywords.keySet.mkString(" "))))
+        .limit(limit)
+    }
+      .map { resp: Response[SearchResponse] =>
+        ArticleList(resp.result.totalHits, resp.result.to[Article])
+      }
   }
 
   def getWithQuery(query: ArticleQueryDTO): Future[ArticleList] = {

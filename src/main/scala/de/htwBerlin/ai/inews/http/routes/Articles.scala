@@ -47,7 +47,8 @@ class Articles(articleService: ArticleService)(implicit executionContext: Execut
             "department".as[String].*,
             "newspaper".as[String].*,
             "author".?
-          ) { (offset, count, query, departments, newspapers, author) => {
+          )
+          { (offset, count, query, departments, newspapers, author) => {
             val articleQuery = ArticleQueryDTO(offset, count, query, departments, newspapers, author)
             val articles = articleService.getWithQuery(articleQuery)
 

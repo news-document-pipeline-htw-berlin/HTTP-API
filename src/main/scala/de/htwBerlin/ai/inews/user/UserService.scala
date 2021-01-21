@@ -10,6 +10,8 @@ import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
 import de.htwBerlin.ai.inews.MongoDBConnector
 import de.htwBerlin.ai.inews.user.User.UserWriter
 import de.htwBerlin.ai.inews.common.{Error, JWT}
+import de.htwBerlin.ai.inews.core.Article.ArticleList
+import de.htwBerlin.ai.inews.data.ArticleService
 import org.mindrot.jbcrypt.BCrypt
 import reactivemongo.api.{AsyncDriver, DB, MongoConnection}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
@@ -26,7 +28,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
  * Service for handling user related requests
  * @param executionContext executionContext
  */
-class UserService()(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
+class UserService(articleService: ArticleService)(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
   val mongoUri = "mongodb://127.0.0.1:27017/userdb" //?authMode=scram-sha1"
   val driver = new AsyncDriver()
   /*
@@ -65,7 +67,8 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
       "email" -> sur.email,
       "password" -> hashedPassword,
       "suggestions" -> true,
-      "darkMode" -> false
+      "darkMode" -> false,
+      "keywords" -> Map.empty[String, Int]
     )
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
@@ -122,7 +125,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
    * @param id id
    * @return user object
    */
-  private def getUserObjectById(id: String) : User = {
+ private def getUserObjectById(id: String) : User = {
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
     val userDoc = MongoDBConnector.findUserById(Await.result(collection, Duration(1, SECONDS)),
@@ -235,7 +238,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     }
     try {
       val user = getUserObjectById(ud._id)
-      updateUser(User(user.id, user.username, ud.email, user.password, ud.suggestions, ud.darkMode))
+      updateUser(User(user.id, user.username, ud.email, user.password, ud.suggestions, ud.darkMode, ud.keywords))
       complete(StatusCodes.OK, "User Data for '" + ud.username + "' has been updated.")
     } catch {
       case e: NoSuchElementException =>
@@ -258,7 +261,7 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
         val hashedPassword = BCrypt.hashpw(cpr.newPW, BCrypt.gensalt())
         try {
           val user = getUserObjectByUsername(cpr.user)
-          updateUser(User(user.id, user.username, user.email, hashedPassword, user.suggestions, user.darkMode))
+          updateUser(User(user.id, user.username, user.email, hashedPassword, user.suggestions, user.darkMode, user.keywords))
           complete(StatusCodes.OK, "Password for '" + cpr.user + "' has been changed.")
         } catch {
           case e: NoSuchElementException =>
@@ -296,10 +299,36 @@ class UserService()(implicit executionContext: ExecutionContext) extends Directi
     }
   }
 
-  /*database.onComplete {
-    case resolution =>
-      println(s"DB resolution: $resolution")
-      driver.close()
-  }*/
+  def updateKeywords(userId: String, keyWords: KeyWords): Route = {
+    //TODO: Schön machen
+    val user = getUserObjectById(userId)
+    //val newWords = scala.collection.mutable.Map.empty[String, Int]
+    val newWords = collection.mutable.Map(user.keywords.toSeq: _*)
+    (user.keywords.keys.toList ++ keyWords.list).foreach(w => {
+      //val value = if(keyWords.list.contains(w)) 1 else 0
+
+      if(keyWords.list.contains(w) && user.keywords.keySet.contains(w)){
+        newWords.update(w, user.keywords(w) + 1)
+      }else if(user.keywords.keySet.contains(w)) {
+        newWords.update(w, user.keywords(w))
+      } else {
+        newWords.update(w, 1)
+      }
+    })
+
+    user.keywords = newWords.toMap
+    updateUser(user)
+    complete(StatusCodes.NoContent)
+  }
+
+  def getKeywordsFromUser(userID: String): Map[String, Int] = {
+    val user = getUserObjectById(userID)
+    user.keywords
+  }
+
+  def getSuggestionsByKeywords(userID: String, limit: Int = 20) : Future[ArticleList] = {
+    val keywords = getKeywordsFromUser(userID)
+    articleService.getArticlesByKeywords(keywords, limit)
+  }
 
 }
