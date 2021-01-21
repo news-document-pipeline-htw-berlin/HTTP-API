@@ -15,9 +15,13 @@ case class Article(
   mostRelevantLemmas: Seq[String],
   newsSite: String,
   publishedTime: Long,
-  readingTime: Int,
+  readingTime: Double,
   text: String,
-  title: String
+  title: String,
+  entities: Seq[String],
+  keywordsExtracted: Seq[String],
+  shortUrl: String,
+  sentiments: Double
 )
 
 object Article {
@@ -39,7 +43,11 @@ object Article {
       0L,
       0,
       "",
-      ""
+      "",
+      Seq(),
+      Seq(),
+      "",
+      0.0
     )
   }
 }

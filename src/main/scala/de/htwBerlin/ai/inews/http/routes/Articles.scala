@@ -2,7 +2,7 @@ package de.htwBerlin.ai.inews.http.routes
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import de.htwBerlin.ai.inews.core.JsonFormat._
+import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 import de.htwBerlin.ai.inews.data.{ArticleQueryDTO, ArticleService}
 import org.joda.time.DateTime
 

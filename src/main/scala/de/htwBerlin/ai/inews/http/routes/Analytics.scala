@@ -7,7 +7,7 @@ import Directives._
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas.LemmasNotFoundException
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence.TermNotFoundException
 import org.joda.time.DateTime
-import de.htwBerlin.ai.inews.core.JsonFormat._
+import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 import de.htwBerlin.ai.inews.data.ArticleService
 
 import scala.concurrent.ExecutionContext
