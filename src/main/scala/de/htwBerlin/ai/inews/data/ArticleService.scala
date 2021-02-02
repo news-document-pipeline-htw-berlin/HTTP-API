@@ -103,7 +103,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("department", "department")
+          termsAgg("department", "department.keyword")
             .size(100)
         }
     }.map { resp: Response[SearchResponse] =>
@@ -116,7 +116,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("news_site", "news_site")
+          termsAgg("news_site", "news_site.keyword")
             .size(100) // optimistic
         }
     }.map { resp: Response[SearchResponse] =>
@@ -129,7 +129,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("authors", "authors")
+          termsAgg("authors", "authors.keyword")
             .size(10000)
         }
     }.map { resp: Response[SearchResponse] =>
@@ -189,8 +189,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           )
         )
         .aggs(
-          termsAggregation("lemmatizer")
-            .field("lemmatizer")
+          termsAgg("lemmatizer", "lemmatizer.keyword")
             .size(10)
         )
     }.map { resp: Response[SearchResponse] =>
