@@ -9,6 +9,7 @@ import reactivemongo.api.bson.BSONObjectID
 import org.json4s.native.JsonMethods._
 import spray.json._
 import DefaultJsonProtocol._
+import jdk.jshell.SourceCodeAnalysis.Suggestion
 import org.json4s.DefaultFormats
 import org.json4s.JsonAST.JField
 
@@ -31,11 +32,11 @@ object JWT {
    * @param darkMode dark mode
    * @return JwtClaimSet
    */
-  private def setClaims(user: String, id: String, rememberMe: Boolean, darkMode: Boolean): JwtClaimsSetMap = JwtClaimsSet(
+  private def setClaims(user: String, id: String, rememberMe: Boolean, darkMode: Boolean, suggestions: Boolean): JwtClaimsSetMap = JwtClaimsSet(
     if (rememberMe)
-      Map("user" -> user, "id" -> id, "darkMode" -> darkMode)
+      Map("user" -> user, "id" -> id, "darkMode" -> darkMode, "suggestions" -> suggestions)
     else
-      Map("user" -> user, "id" -> id, "darkMode" -> darkMode,
+      Map("user" -> user, "id" -> id, "darkMode" -> darkMode, "suggestions" -> suggestions,
         "expiredAt" -> (System.currentTimeMillis() + TimeUnit.DAYS.toMillis(tokenExpiryPeriodInDays)))
   )
 
@@ -47,8 +48,8 @@ object JWT {
    * @param darkMode dark mode
    * @return JsonWebToken
    */
-  def generateToken(user: String, id: String, rememberMe: Boolean, darkMode: Boolean): String = JsonWebToken(
-    header, setClaims(user, id, rememberMe, darkMode), secretKey
+  def generateToken(user: String, id: String, rememberMe: Boolean, darkMode: Boolean, suggestions: Boolean): String = JsonWebToken(
+    header, setClaims(user, id, rememberMe, darkMode, suggestions), secretKey
   )
 
   def authenticated: Directive1[Map[String, Any]] =

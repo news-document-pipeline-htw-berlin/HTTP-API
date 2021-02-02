@@ -8,8 +8,6 @@ import com.typesafe.config.ConfigFactory
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
 import de.htwBerlin.ai.inews.core.Article._
-import de.htwBerlin.ai.inews.user.{User, UserService}
-import reactivemongo.api.bson.BSONObjectID
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -28,7 +26,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   implicit val hitReader: ArticleHitReader.type = ArticleHitReader
 
   final case class KeywordsQuery (
-                                 keywords: Iterable[String]
+                                   keywords: Iterable[String]
                                  )
 
   def getById(id: String): Future[Article] = {
@@ -69,7 +67,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         should(
           {
             for (department <- query.departments.filter(!_.isEmpty)) yield {
-              matchQuery("departments", department)
+              matchQuery("department", department)
             }
           }
         )
@@ -81,7 +79,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         should(
           {
             for (newspaper <- query.newspapers.filter(!_.isEmpty)) yield {
-              matchQuery("newsSite", newspaper)
+              matchQuery("news_site", newspaper)
             }
           }
         )
@@ -105,11 +103,11 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("departments", "departments")
+          termsAgg("department", "department")
             .size(100)
         }
     }.map { resp: Response[SearchResponse] =>
-      resp.result.aggs.terms("departments").buckets.map(_.key)
+      resp.result.aggs.terms("department").buckets.map(_.key)
     }
   }
 
@@ -118,11 +116,11 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("newspapers", "newsSite")
+          termsAgg("news_site", "news_site")
             .size(100) // optimistic
         }
     }.map { resp: Response[SearchResponse] =>
-      resp.result.aggs.terms("newspapers").buckets.map(_.key)
+      resp.result.aggs.terms("news_site").buckets.map(_.key)
     }
   }
 
@@ -151,14 +149,14 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           must(
             multiMatchQuery(q)
               .fields("title", "description", "intro", "text"),
-            rangeQuery("publishedTime")
+            rangeQuery("published_time")
               .gt(ElasticDate.fromTimestamp(timeFrom))
               .lt(ElasticDate.fromTimestamp(timeTo))
           )
         )
         .aggs {
           dateHistogramAggregation("termOccurrence")
-            .field("publishedTime")
+            .field("published_time")
             .calendarInterval(DateHistogramInterval.Day)
             .minDocCount(0)
             .missing(0)
@@ -186,20 +184,20 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .bool(
           must(
-            rangeQuery("publishedTime")
+            rangeQuery("published_time")
               .gt(ElasticDate.now.minus(7, Days))
           )
         )
         .aggs(
-          termsAggregation("mostRelevantLemmas")
-            .field("mostRelevantLemmas")
+          termsAggregation("lemmatizer")
+            .field("lemmatizer")
             .size(10)
         )
     }.map { resp: Response[SearchResponse] =>
       if (resp.result.size == 0)
         throw LemmasNotFoundException("No articles found. ")
 
-      val lemmas = resp.result.aggregations.terms("mostRelevantLemmas")
+      val lemmas = resp.result.aggregations.terms("lemmatizer")
         .buckets.map(bucket => Lemma(bucket.key, bucket.docCount))
 
       Lemmas(lemmas)

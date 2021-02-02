@@ -18,9 +18,9 @@ object ArticleHitReader extends HitReader[Article] {
         case time: String => DateTime.parse(time).getMillis
         case _ => 0
       },
-      hit.sourceAsMap.getOrElse("departments", Seq()) match {
-        case departments if departments == null => Seq()
-        case departments => departments.asInstanceOf[List[String]]
+      hit.sourceAsMap.getOrElse("department", Seq()) match {
+        case department if department == null => Seq()
+        case department => department.asInstanceOf[List[String]]
       },
       hit.sourceAsMap.getOrElse("description", "") match {
         case description: String => description
@@ -70,6 +70,10 @@ object ArticleHitReader extends HitReader[Article] {
         case text: String => text
         case _ => ""
       },
+      hit.sourceAsMap.getOrElse("textSum", "") match {
+        case textSum: String => textSum
+        case _ => ""
+      },
       hit.sourceAsMap.getOrElse("title", "") match {
         case title: String => title
         case _ => ""
@@ -86,7 +90,7 @@ object ArticleHitReader extends HitReader[Article] {
         case shortUrl: String => shortUrl
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("sentimens", 0.0) match {
+      hit.sourceAsMap.getOrElse("sentiments", 0.0) match {
         case sentiments: Double => sentiments
         case _ => 0.0
       }

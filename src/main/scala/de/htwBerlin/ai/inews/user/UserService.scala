@@ -2,7 +2,7 @@ package de.htwBerlin.ai.inews.user
 
 import java.util.concurrent.TimeUnit
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{DateTime, StatusCodes}
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.headers.HttpCookie
 import akka.http.scaladsl.server.{Directives, Route}
@@ -20,6 +20,7 @@ import org.json4s.native.Serialization.write
 import reactivemongo.api.bson.collection.BSONCollection
 import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONHandler, BSONObjectID, Macros, `null`}
 import reactivemongo.core.nodeset.Authenticate
+import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -48,16 +49,18 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Extracts the ID string from a BSONObjectID
+   *
    * @param id BSONObjectID
    * @return string of ID
    */
   private def convertId(id: BSONObjectID): String = {
     val str = id.toString()
-    str.substring(str.indexOf('(')+1, str.indexOf(')'))
+    str.substring(str.indexOf('(') + 1, str.indexOf(')'))
   }
 
   /**
    * Creates a new user in database
+   *
    * @param sur signup data
    */
   private def createUser(sur: SignUpRequest) = {
@@ -77,6 +80,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Updates given user in database.
+   *
    * @param user user
    */
   private def updateUser(user: User): Unit = {
@@ -88,6 +92,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Deletes given user in database.
+   *
    * @param id user's id
    */
   private def deleteUser(id: BSONObjectID): Unit = {
@@ -98,10 +103,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Finds a user by username and returns the corresponding object
+   *
    * @param username username
    * @return user object
    */
-  private def getUserObjectByUsername(username: String) : User = {
+  private def getUserObjectByUsername(username: String): User = {
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
     val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), username).get
@@ -110,10 +116,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Finds a user by email and returns the corresponding object
+   *
    * @param email email
    * @return user object
    */
-  private def getUserObjectByEmail(email: String) : User = {
+  private def getUserObjectByEmail(email: String): User = {
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
     val userDoc = MongoDBConnector.findUserByEmail(Await.result(collection, Duration(1, SECONDS)), email).get
@@ -122,10 +129,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Finds a user by id and returns the corresponding object
+   *
    * @param id id
    * @return user object
    */
- private def getUserObjectById(id: String) : User = {
+  private def getUserObjectById(id: String): User = {
     val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
       Duration(1, SECONDS)))
     val userDoc = MongoDBConnector.findUserById(Await.result(collection, Duration(1, SECONDS)),
@@ -135,6 +143,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Checks if given username and password are valid.
+   *
    * @param username username
    * @param password password
    * @return error value
@@ -142,7 +151,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
   private def validateCredentials(username: String, password: String): Error.Value = {
     try {
       val user = getUserObjectByUsername(username)
-      if(!BCrypt.checkpw(password, user.password))
+      if (!BCrypt.checkpw(password, user.password))
         return Error.INVALID_PASSWORD
     } catch {
       case _: NoSuchElementException =>
@@ -153,6 +162,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Checks if signup data is valid.
+   *
    * @param sur signup data
    * @return error value
    */
@@ -178,6 +188,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Handles a login request.
+   *
    * @param lr login request
    * @return set JWT cookie on success
    */
@@ -186,9 +197,10 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     e match {
       case Error.OK =>
         val user = getUserObjectByUsername(lr.user)
+        val expires = Option(if (lr.rememberMe) DateTime.MaxValue else null)
         val jwtToken = JWT.generateToken(user.username, convertId(user.id), rememberMe = lr.rememberMe,
-          darkMode = user.darkMode)
-        setCookie(HttpCookie("accessToken", value = jwtToken, path = Option("/"))) {
+          darkMode = user.darkMode, suggestions = user.suggestions)
+        setCookie(HttpCookie("accessToken", value = jwtToken, path = Option("/"), expires = expires)) {
           complete(StatusCodes.OK, "Logged in successfully.")
         }
       case _ => Error.processError(e)
@@ -197,6 +209,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Handles a signup request.
+   *
    * @param sur signup request
    * @return status code
    */
@@ -214,10 +227,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Handles a request to get user data.
+   *
    * @param id id of user
    * @return user in body on success
    */
-  def getUserData(id: String) : Route = {
+  def getUserData(id: String): Route = {
     try {
       val user = getUserObjectById(id)
       complete(BSONDocument.pretty(UserWriter.writeTry(user).get))
@@ -229,10 +243,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Handles a request to update user data.
+   *
    * @param ud user data
    * @return status code
    */
-  def updateUserData(ud: UserData, id: String) : Route = {
+  def updateUserData(ud: UserData, id: String): Route = {
     if (!id.equals(ud._id)) {
       complete(StatusCodes.Unauthorized, "Unauthorized to alter user data.")
     }
@@ -248,10 +263,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   /**
    * Handles a request to update a user's password.
+   *
    * @param cpr change password request
    * @return status code
    */
-  def updatePassword(cpr: ChangePasswordRequest) : Route = {
+  def updatePassword(cpr: ChangePasswordRequest): Route = {
     val e = validateCredentials(cpr.user, cpr.oldPW)
     e match {
       case Error.OK => {
@@ -267,28 +283,59 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
           case e: NoSuchElementException =>
             complete(StatusCodes.NotFound, "User '" + cpr.user + "' could not be found.")
         }
-    }
+      }
       case _ =>
         Error.processError(e)
     }
   }
 
-  def isAuth(lr: LoginRequest) : Route = {
+  /**
+   * Checks credentials of login request.
+   *
+   * @param lr login request
+   * @return status code
+   */
+  def isAuth(lr: LoginRequest): Route = {
     Error.processError(validateCredentials(lr.user, lr.password))
   }
 
   /**
    * Handles a delete user request.
+   *
    * @param ar auth data
    * @return status code
    */
-  def deleteUser(ar: AuthRequest) : Route = {
+  def deleteUser(ar: AuthRequest): Route = {
     val e = validateCredentials(ar.user, ar.password)
     e match {
       case Error.OK =>
         try {
           val user = getUserObjectByUsername(ar.user)
-          deleteUser(user.id)
+          updateUser(user)
+          complete(StatusCodes.OK, "Data of " + ar.user + " has been deleted.")
+        } catch {
+          case e: NoSuchElementException =>
+            complete(StatusCodes.NotFound, "User '" + ar.user + "' could not be found.")
+        }
+      case _ =>
+        Error.processError(e)
+    }
+  }
+
+  /**
+   * Handles a delete data request.
+   *
+   * @param ar auth data
+   * @return status code
+   */
+  def deleteData(ar: AuthRequest): Route = {
+    val e = validateCredentials(ar.user, ar.password)
+    e match {
+      case Error.OK =>
+        try {
+          val user = getUserObjectByUsername(ar.user)
+          user.keywords = Map.empty
+          updateUser(user)
           complete(StatusCodes.OK, "Account for " + ar.user + " and all its data has been deleted.")
         } catch {
           case e: NoSuchElementException =>
@@ -299,6 +346,16 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     }
   }
 
+  /**
+   * Handles a get keywords request.
+   *
+   * @param id id of requesting user
+   * @return count of keywords
+   */
+  def getKeywords(id: String): Route = {
+    complete(StatusCodes.OK, getKeywordsFromUser(id).size.toString)
+  }
+
   def updateKeywords(userId: String, keyWords: KeyWords): Route = {
     //TODO: Schön machen
     val user = getUserObjectById(userId)
@@ -307,9 +364,9 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     (user.keywords.keys.toList ++ keyWords.list).foreach(w => {
       //val value = if(keyWords.list.contains(w)) 1 else 0
 
-      if(keyWords.list.contains(w) && user.keywords.keySet.contains(w)){
+      if (keyWords.list.contains(w) && user.keywords.keySet.contains(w)) {
         newWords.update(w, user.keywords(w) + 1)
-      }else if(user.keywords.keySet.contains(w)) {
+      } else if (user.keywords.keySet.contains(w)) {
         newWords.update(w, user.keywords(w))
       } else {
         newWords.update(w, 1)
@@ -326,9 +383,8 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     user.keywords
   }
 
-  def getSuggestionsByKeywords(userID: String, limit: Int = 20) : Future[ArticleList] = {
+  def getSuggestionsByKeywords(userID: String, limit: Int = 20): Future[ArticleList] = {
     val keywords = getKeywordsFromUser(userID)
     articleService.getArticlesByKeywords(keywords, limit)
   }
-
 }

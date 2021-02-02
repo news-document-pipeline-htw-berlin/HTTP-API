@@ -2,7 +2,7 @@ package de.htwBerlin.ai.inews.http
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
-import de.htwBerlin.ai.inews.http.routes.{Analytics, Articles, /*Authors,*/ Users}
+import de.htwBerlin.ai.inews.http.routes.{Analytics, Articles, Users}
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 //import de.htwBerlin.ai.inews.author.AuthorService
 import de.htwBerlin.ai.inews.data.ArticleService
@@ -24,7 +24,7 @@ class HttpRoutes(implicit executionContext: ExecutionContext) {
   val route: Route = cors() {
     pathPrefix("api") {
       //authorsRoute.route ~
-      usersRoute.route ~
+        usersRoute.route ~
       articleRoute.route ~
       analyticsRoute.route
     }
