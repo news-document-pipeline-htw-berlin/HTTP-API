@@ -1,11 +1,10 @@
 package de.htwBerlin.ai.inews.http.routes
 
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives.{complete, parameters, pathPrefix, post, _}
+import akka.http.scaladsl.server.Directives.{parameters, pathPrefix, post, _}
 import akka.http.scaladsl.server.{Directives, Route}
-import de.htwBerlin.ai.inews.common.JWT
 import de.htwBerlin.ai.inews.core.Article.JsonFormat._
-import de.htwBerlin.ai.inews.data.ArticleQueryDTO
+import de.htwBerlin.ai.inews.common.JWT
 import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, UserData, UserService}
 import reactivemongo.api.bson.BSONObjectID
 
@@ -17,7 +16,6 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
     pathPrefix("users") {
       // /api/users/account
       pathPrefix("account") {
-        // TODO: this route requires auth
         delete {
           JWT.authenticated { claims =>
             parameters(
@@ -44,8 +42,7 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
                   entity(as[AuthRequest]) {
                     ar =>
                       if (data) {
-                        // TODO delete data
-                        complete(StatusCodes.OK)
+                        userService.deleteData(ar)
                       } else {
                         complete(StatusCodes.NotFound)
                       }
@@ -73,6 +70,11 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
             }
           }
       } ~
+        pathPrefix("keywords") {
+          JWT.authenticated { claims =>
+              userService.getKeywords(claims("id").toString)
+          }
+        }~
         pathPrefix("suggestions") {
           put {
             JWT.authenticated { claims =>
