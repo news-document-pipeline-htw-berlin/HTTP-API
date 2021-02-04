@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives.{complete, parameters, pathPrefix, post, _}
 import akka.http.scaladsl.server.{Directives, Route}
 import de.htwBerlin.ai.inews.common.JWT
-import de.htwBerlin.ai.inews.core.JsonFormat._
+import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 import de.htwBerlin.ai.inews.data.ArticleQueryDTO
 import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, UserData, UserService}
 import reactivemongo.api.bson.BSONObjectID

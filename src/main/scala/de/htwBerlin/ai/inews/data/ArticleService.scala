@@ -4,6 +4,7 @@ import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperti
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
 import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.requests.searches.queries.compound.BoolQueryBuilderFn
 import com.typesafe.config.ConfigFactory
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
@@ -41,12 +42,14 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   }
 
   def getArticlesByKeywords(keywords: Map[String, Int], limit: Int): Future[ArticleList] = {
+    val sortedKeywords = keywords.map(x => (x._2, x._1)).toList.sortBy(x => x._1).reverse
     client.execute {
       search(indexName)
         .bool(
           should(
-            matchQuery("keywords", keywords.keySet.mkString(" "))))
-        .limit(limit)
+            (for (x <- sortedKeywords) yield termQuery("keywords", x._2).boost(x._1)).take(5)
+          )
+        ).limit(limit)
     }
       .map { resp: Response[SearchResponse] =>
         ArticleList(resp.result.totalHits, resp.result.to[Article])
