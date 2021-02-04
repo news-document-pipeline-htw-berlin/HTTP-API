@@ -45,7 +45,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .bool(
           should(
-            (for (x <- sortedKeywords) yield termQuery("keywords", x._2).boost(x._1)).take(5)
+            (for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
           )
         )
     }

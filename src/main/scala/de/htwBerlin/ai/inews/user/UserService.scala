@@ -358,13 +358,13 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
 
   def updateKeywords(userId: String, keyWords: KeyWords): Route = {
     //TODO: Schön machen
+    val keyWordsList = keyWords.list.map(_.toLowerCase)
     val user = getUserObjectById(userId)
     //val newWords = scala.collection.mutable.Map.empty[String, Int]
     val newWords = collection.mutable.Map(user.keywords.toSeq: _*)
-    (user.keywords.keys.toList ++ keyWords.list).foreach(w => {
+    (user.keywords.keys.toList ++ keyWords.list).map(_.toLowerCase).foreach(w => {
       //val value = if(keyWords.list.contains(w)) 1 else 0
-
-      if (keyWords.list.contains(w) && user.keywords.keySet.contains(w)) {
+      if (keyWordsList.contains(w) && user.keywords.keySet.contains(w)) {
         newWords.update(w, user.keywords(w) + 1)
       } else if (user.keywords.keySet.contains(w)) {
         newWords.update(w, user.keywords(w))
