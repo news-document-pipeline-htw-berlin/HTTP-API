@@ -383,8 +383,8 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     user.keywords
   }
 
-  def getSuggestionsByKeywords(userID: String): Future[ArticleList] = {
+  def getSuggestionsByKeywords(userID: String, offset: Int, count: Int): Future[ArticleList] = {
     val keywords = getKeywordsFromUser(userID)
-    articleService.getArticlesByKeywords(keywords)
+    articleService.getArticlesByKeywords(keywords, offset, count)
   }
 }

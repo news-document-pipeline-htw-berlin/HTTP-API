@@ -72,9 +72,9 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
       } ~
         pathPrefix("keywords") {
           JWT.authenticated { claims =>
-              userService.getKeywords(claims("id").toString)
+            userService.getKeywords(claims("id").toString)
           }
-        }~
+        } ~
         pathPrefix("suggestions") {
           put {
             JWT.authenticated { claims =>
@@ -84,12 +84,19 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
 
             }
           } ~
-            get {
+            get (
               JWT.authenticated { claims =>
-                val suggestions = userService.getSuggestionsByKeywords(claims("id").toString)
-                complete(suggestions)
+              parameters(
+                "offset" ? 0,
+                "count" ? 20
+              ) {
+                (offset, count) => {
+                    val suggestions = userService.getSuggestionsByKeywords(claims("id").toString, offset, count)
+                    complete(suggestions)
+                  }
+                }
               }
-            }
+            )
         } ~
         // /api/users/login
         pathPrefix("login") {

@@ -26,9 +26,9 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   // this is needed to serialize ES results into Articles
   implicit val hitReader: ArticleHitReader.type = ArticleHitReader
 
-  final case class KeywordsQuery (
-                                   keywords: Iterable[String]
-                                 )
+  final case class KeywordsQuery(
+                                  keywords: Iterable[String]
+                                )
 
   def getById(id: String): Future[Article] = {
     client.execute {
@@ -39,7 +39,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     }.map(articles => if (articles.nonEmpty) articles.head else Article.empty)
   }
 
-  def getArticlesByKeywords(keywords: Map[String, Int]): Future[ArticleList] = {
+  def getArticlesByKeywords(keywords: Map[String, Int], offset: Int, count: Int): Future[ArticleList] = {
     val sortedKeywords = keywords.map(x => (x._2, x._1)).toList.sortBy(x => x._1).reverse
     client.execute {
       search(indexName)
@@ -48,6 +48,9 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
             (for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
           )
         )
+        .sortByFieldDesc("published_time")
+        .from(offset)
+        .size(count)
     }
       .map { resp: Response[SearchResponse] =>
         ArticleList(resp.result.totalHits, resp.result.to[Article])
@@ -56,9 +59,9 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
 
   def getWithQuery(query: ArticleQueryDTO): Future[ArticleList] = {
     var request = search(indexName)
-        .sortByFieldDesc("published_time")
-        .from(query.offset)
-        .size(query.count)
+      .sortByFieldDesc("published_time")
+      .from(query.offset)
+      .size(query.count)
 
     query.query match {
       case Some(q) if !q.isEmpty => request = request.query(q)
