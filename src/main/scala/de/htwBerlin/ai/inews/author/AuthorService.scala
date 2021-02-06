@@ -8,8 +8,6 @@ import akka.http.scaladsl.model.headers.HttpCookie
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.{Directives, Route}
 import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
-import de.htwBerlin.ai.inews.DBConnector
-import de.htwBerlin.ai.inews.{Author}
 import org.mindrot.jbcrypt.BCrypt
 import reactivemongo.api.{AsyncDriver, MongoConnection}
 import spray.json.{DefaultJsonProtocol, RootJsonFormat}
@@ -26,25 +24,13 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 
 
 class AuthorService()(implicit executionContext: ExecutionContext) extends Directives {
-
-  val mongoUri = "mongodb://127.0.0.1:27017/inews"
-  val driver = new AsyncDriver()
-
-  val database = for {
-    uri <- MongoConnection.fromString(mongoUri)
-    con <- driver.connect(uri)
-    dn <- Future(uri.db.get)
-    db <- con.database(dn)
-  } yield db
-
-  implicit val formats: DefaultFormats = DefaultFormats
-  implicit val authorHandler: BSONHandler[Author] = Macros.handler[Author]
-
+  /**
+   * Retrieves an author by id.
+   * @param id author name
+   * @return Author result on success
+   */
   def getAuthor(id: String): Route = {
-    val collection = DBConnector.dbFromConnection(Await.result(database.map(_.connection),
-          Duration(1, SECONDS)))
-    val res = DBConnector.findAuthorById(Await.result(collection, Duration(1, SECONDS)), id)
-
+    val res = AuthorDBConnector.findAuthorById(id)
     res.getOrElse(NotFound) match {
       case BSONDocument(i) => complete(BSONDocument.pretty(res.get))
       case None => complete(StatusCodes.NotFound, "Author " + id + " could not be found.")
