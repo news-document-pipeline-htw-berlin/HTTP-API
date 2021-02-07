@@ -7,7 +7,6 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.headers.HttpCookie
 import akka.http.scaladsl.server.{Directives, Route}
 import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
-import de.htwBerlin.ai.inews.MongoDBConnector
 import de.htwBerlin.ai.inews.user.User.UserWriter
 import de.htwBerlin.ai.inews.common.{Error, JWT}
 import de.htwBerlin.ai.inews.core.Article.ArticleList
@@ -30,23 +29,6 @@ import scala.concurrent.{Await, ExecutionContext, Future}
  * @param executionContext executionContext
  */
 class UserService(articleService: ArticleService)(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
-  val mongoUri = "mongodb://127.0.0.1:27017/userdb" //?authMode=scram-sha1"
-  val driver = new AsyncDriver()
-  /*
-  val mongoUserName = "userdbAdmin"
-  val mongoPassword = "admin"
-  val dbCredentials = List(Authenticate("userdb", mongoUserName, Some(mongoPassword)))
-  */
-
-  val database: Future[DB] = for {
-    uri <- MongoConnection.fromString(mongoUri)
-    con <- driver.connect(uri)
-    dn <- Future(uri.db.get)
-    db <- con.database(dn)
-  } yield db
-  implicit val formats: DefaultFormats = DefaultFormats
-  implicit val userHandler: BSONHandler[User] = Macros.handler[User]
-
   /**
    * Extracts the ID string from a BSONObjectID
    *
@@ -73,9 +55,8 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
       "darkMode" -> false,
       "keywords" -> Map.empty[String, Int]
     )
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    MongoDBConnector.insertDocument(Await.result(collection, Duration(1, SECONDS)), bDoc)
+
+    UserDBConnector.insertDocument(bDoc)
   }
 
   /**
@@ -84,10 +65,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @param user user
    */
   private def updateUser(user: User): Unit = {
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    MongoDBConnector.updateDocument(Await.result(collection, Duration(1, SECONDS)),
-      UserWriter.writeTry(user).get, user.id)
+    UserDBConnector.updateDocument(UserWriter.writeTry(user).get, user.id)
   }
 
   /**
@@ -96,9 +74,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @param id user's id
    */
   private def deleteUser(id: BSONObjectID): Unit = {
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    MongoDBConnector.deleteDocument(Await.result(collection, Duration(1, SECONDS)), id)
+    UserDBConnector.deleteDocument(id)
   }
 
   /**
@@ -108,9 +84,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @return user object
    */
   private def getUserObjectByUsername(username: String): User = {
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    val userDoc = MongoDBConnector.findUserByUsername(Await.result(collection, Duration(1, SECONDS)), username).get
+    val userDoc = UserDBConnector.findUserByUsername(username).get
     User.UserReader.readDocument(userDoc).get
   }
 
@@ -121,9 +95,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @return user object
    */
   private def getUserObjectByEmail(email: String): User = {
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    val userDoc = MongoDBConnector.findUserByEmail(Await.result(collection, Duration(1, SECONDS)), email).get
+    val userDoc = UserDBConnector.findUserByEmail(email).get
     User.UserReader.readDocument(userDoc).get
   }
 
@@ -134,10 +106,7 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @return user object
    */
   private def getUserObjectById(id: String): User = {
-    val collection = MongoDBConnector.dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-    val userDoc = MongoDBConnector.findUserById(Await.result(collection, Duration(1, SECONDS)),
-      BSONObjectID.parse(id).get).get
+    val userDoc = UserDBConnector.findUserById(BSONObjectID.parse(id).get).get
     User.UserReader.readDocument(userDoc).get
   }
 
@@ -383,8 +352,8 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     user.keywords
   }
 
-  def getSuggestionsByKeywords(userID: String): Future[ArticleList] = {
+  def getSuggestionsByKeywords(userID: String, offset: Int, count: Int): Future[ArticleList] = {
     val keywords = getKeywordsFromUser(userID)
-    articleService.getArticlesByKeywords(keywords)
+    articleService.getArticlesByKeywords(keywords, offset, count)
   }
 }

@@ -7,7 +7,14 @@ import scala.collection.immutable
 import scala.util.{Success, Try}
 
 
-case class User(id: BSONObjectID, username: String, email: String, password: String, suggestions: Boolean, darkMode: Boolean, var keywords: immutable.Map[String, Int])
+case class User(
+                 id: BSONObjectID,
+                 username: String,
+                 email: String,
+                 password: String,
+                 suggestions: Boolean,
+                 darkMode: Boolean,
+                 var keywords: immutable.Map[String, Int])
 
 object User {
 
