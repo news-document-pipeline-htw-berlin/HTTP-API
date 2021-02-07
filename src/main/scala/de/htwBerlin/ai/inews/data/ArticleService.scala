@@ -1,10 +1,11 @@
 package de.htwBerlin.ai.inews.data
 
-import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperties, Response}
+import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperties, Response, Years}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.requests.searches.queries.compound.BoolQueryBuilderFn
+import com.sksamuel.elastic4s.requests.searches.queries.matches.MultiMatchQuery
 import com.typesafe.config.ConfigFactory
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
@@ -44,8 +45,13 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     client.execute {
       search(indexName)
         .bool(
+          must(
+            rangeQuery("published_time")
+              .gt(ElasticDate.now.minus(1, Years))
+          )
           should(
-            (for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
+            //(for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
+            (for (x <- sortedKeywords) yield multiMatchQuery(x._2).fields("keywords", "keywords_extracted").boost(x._1)).take(10)
           )
         )
     }
