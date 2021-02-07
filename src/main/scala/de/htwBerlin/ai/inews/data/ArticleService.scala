@@ -45,10 +45,6 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     client.execute {
       search(indexName)
         .bool(
-          must(
-            rangeQuery("published_time")
-              .gt(ElasticDate.now.minus(1, Years))
-          )
           should(
             //(for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
             (for (x <- sortedKeywords) yield multiMatchQuery(x._2).fields("keywords", "keywords_extracted").boost(x._1)).take(10)
