@@ -1,9 +1,11 @@
 package de.htwBerlin.ai.inews.data
 
-import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperties, Response}
+import com.sksamuel.elastic4s.{Days, ElasticClient, ElasticDate, ElasticProperties, Response, Years}
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.searches.{DateHistogramInterval, SearchResponse}
 import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.requests.searches.queries.compound.BoolQueryBuilderFn
+import com.sksamuel.elastic4s.requests.searches.queries.matches.MultiMatchQuery
 import com.typesafe.config.ConfigFactory
 import de.htwBerlin.ai.inews.core.Analytics.MostRelevantLemmas._
 import de.htwBerlin.ai.inews.core.Analytics.TermOccurrence._
@@ -25,6 +27,10 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
   // this is needed to serialize ES results into Articles
   implicit val hitReader: ArticleHitReader.type = ArticleHitReader
 
+  final case class KeywordsQuery(
+                                  keywords: Iterable[String]
+                                )
+
   def getById(id: String): Future[Article] = {
     client.execute {
       search(indexName)
@@ -34,11 +40,30 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
     }.map(articles => if (articles.nonEmpty) articles.head else Article.empty)
   }
 
+  def getArticlesByKeywords(keywords: Map[String, Int], offset: Int, count: Int): Future[ArticleList] = {
+    val sortedKeywords = keywords.map(x => (x._2, x._1)).toList.sortBy(x => x._1).reverse
+    client.execute {
+      search(indexName)
+        .bool(
+          should(
+            //(for (x <- sortedKeywords) yield termsQuery("keywords", x._2).boost(x._1)).take(5)
+            (for (x <- sortedKeywords) yield multiMatchQuery(x._2).fields("keywords", "keywords_extracted").boost(x._1)).take(10)
+          )
+        )
+        .sortByFieldDesc("published_time")
+        .from(offset)
+        .size(count)
+    }
+      .map { resp: Response[SearchResponse] =>
+        ArticleList(resp.result.totalHits, resp.result.to[Article])
+      }
+  }
+
   def getWithQuery(query: ArticleQueryDTO): Future[ArticleList] = {
     var request = search(indexName)
-        .sortByFieldDesc("publishedTime")
-        .from(query.offset)
-        .size(query.count)
+      .sortByFieldDesc("published_time")
+      .from(query.offset)
+      .size(query.count)
 
     query.query match {
       case Some(q) if !q.isEmpty => request = request.query(q)
@@ -50,7 +75,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         should(
           {
             for (department <- query.departments.filter(!_.isEmpty)) yield {
-              matchQuery("departments", department)
+              matchQuery("department", department)
             }
           }
         )
@@ -62,7 +87,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
         should(
           {
             for (newspaper <- query.newspapers.filter(!_.isEmpty)) yield {
-              matchQuery("newsSite", newspaper)
+              matchQuery("news_site", newspaper)
             }
           }
         )
@@ -86,11 +111,11 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("departments", "departments")
+          termsAgg("department", "department.keyword")
             .size(100)
         }
     }.map { resp: Response[SearchResponse] =>
-      resp.result.aggs.terms("departments").buckets.map(_.key)
+      resp.result.aggs.terms("department").buckets.map(_.key)
     }
   }
 
@@ -99,11 +124,11 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("newspapers", "newsSite")
+          termsAgg("news_site", "news_site.keyword")
             .size(100) // optimistic
         }
     }.map { resp: Response[SearchResponse] =>
-      resp.result.aggs.terms("newspapers").buckets.map(_.key)
+      resp.result.aggs.terms("news_site").buckets.map(_.key)
     }
   }
 
@@ -112,7 +137,7 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .size(0)
         .aggs {
-          termsAgg("authors", "authors")
+          termsAgg("authors", "authors.keyword")
             .size(10000)
         }
     }.map { resp: Response[SearchResponse] =>
@@ -132,14 +157,14 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           must(
             multiMatchQuery(q)
               .fields("title", "description", "intro", "text"),
-            rangeQuery("publishedTime")
+            rangeQuery("published_time")
               .gt(ElasticDate.fromTimestamp(timeFrom))
               .lt(ElasticDate.fromTimestamp(timeTo))
           )
         )
         .aggs {
           dateHistogramAggregation("termOccurrence")
-            .field("publishedTime")
+            .field("published_time")
             .calendarInterval(DateHistogramInterval.Day)
             .minDocCount(0)
             .missing(0)
@@ -167,20 +192,19 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
       search(indexName)
         .bool(
           must(
-            rangeQuery("publishedTime")
+            rangeQuery("published_time")
               .gt(ElasticDate.now.minus(7, Days))
           )
         )
         .aggs(
-          termsAggregation("mostRelevantLemmas")
-            .field("mostRelevantLemmas")
+          termsAgg("lemmatizer", "lemmatizer.keyword")
             .size(10)
         )
     }.map { resp: Response[SearchResponse] =>
       if (resp.result.size == 0)
         throw LemmasNotFoundException("No articles found. ")
 
-      val lemmas = resp.result.aggregations.terms("mostRelevantLemmas")
+      val lemmas = resp.result.aggregations.terms("lemmatizer")
         .buckets.map(bucket => Lemma(bucket.key, bucket.docCount))
 
       Lemmas(lemmas)

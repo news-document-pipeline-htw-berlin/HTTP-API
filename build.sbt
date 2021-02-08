@@ -1,10 +1,12 @@
 name := "inews-http-api"
 organization := "de.htwBerlin.ai"
 version := "0.1"
-scalaVersion := "2.13.1"
+scalaVersion := "2.12.1"
 
 val akkaVersion = "10.1.11"
 val elastic4sVersion = "7.3.4"
+
+resolvers ++= Seq("snapshots", "releases").map(Resolver.sonatypeRepo)
 
 libraryDependencies ++= Seq(
     /* Akka http */
@@ -21,6 +23,23 @@ libraryDependencies ++= Seq(
 
     "com.sksamuel.elastic4s" %% "elastic4s-core" % elastic4sVersion,
     "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion, // default http client
+
+    /* authentication */
+    // https://mvnrepository.com/artifact/com.jason-goodwin/authentikat-jwt
+    "com.jason-goodwin" %% "authentikat-jwt" % "0.4.5",
+
+    /* Reactive MongoDB Connector */
+    "org.reactivemongo" %% "reactivemongo" % "1.0.0",
+
+    /* SLF4J backend, logback recommended by Akka docs */
+    /* https://stackoverflow.com/questions/42598459/failed-to-load-class-org-slf4j-impl-staticloggerbinder-message-error-from-slf4 */
+    "ch.qos.logback" % "logback-classic" % "1.1.3" % Runtime,
+
+    /* BCrypt for password */
+    "org.mindrot" % "jbcrypt" % "0.3m",
+
+    "org.reactivemongo" % "reactivemongo-shaded-native" % "1.0.1-linux-x86-64" % Runtime
+
 )
 
 // https://stackoverflow.com/a/39058507
