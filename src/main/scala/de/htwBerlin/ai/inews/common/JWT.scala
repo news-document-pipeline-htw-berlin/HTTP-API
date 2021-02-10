@@ -5,7 +5,6 @@ import akka.http.scaladsl.server.Directive1
 import akka.http.scaladsl.server.Directives.{complete, optionalHeaderValueByName, provide}
 import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtClaimsSetJValue, JwtClaimsSetMap, JwtHeader}
 import de.htwBerlin.ai.inews.user.{LoginRequest, User}
-import reactivemongo.api.bson.BSONObjectID
 import org.json4s.native.JsonMethods._
 import spray.json._
 import DefaultJsonProtocol._
@@ -60,7 +59,7 @@ object JWT {
       case Some(jwt) if JsonWebToken.validate(jwt, secretKey) =>
         provide(getClaims(jwt).getOrElse(Map.empty[String, Any]))
 
-      //case _ => complete(StatusCodes.Unauthorized)
+      case None => complete(StatusCodes.Unauthorized)
     }
 
   /**

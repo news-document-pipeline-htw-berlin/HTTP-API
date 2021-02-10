@@ -28,9 +28,6 @@ libraryDependencies ++= Seq(
     // https://mvnrepository.com/artifact/com.jason-goodwin/authentikat-jwt
     "com.jason-goodwin" %% "authentikat-jwt" % "0.4.5",
 
-    /* Reactive MongoDB Connector */
-    "org.reactivemongo" %% "reactivemongo" % "1.0.0",
-
     /* SLF4J backend, logback recommended by Akka docs */
     /* https://stackoverflow.com/questions/42598459/failed-to-load-class-org-slf4j-impl-staticloggerbinder-message-error-from-slf4 */
     "ch.qos.logback" % "logback-classic" % "1.1.3" % Runtime,
@@ -38,7 +35,9 @@ libraryDependencies ++= Seq(
     /* BCrypt for password */
     "org.mindrot" % "jbcrypt" % "0.3m",
 
-    "org.reactivemongo" % "reactivemongo-shaded-native" % "1.0.1-linux-x86-64" % Runtime
+    // https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
+    // Classic MongoDB Driver
+    "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.0"
 
 )
 

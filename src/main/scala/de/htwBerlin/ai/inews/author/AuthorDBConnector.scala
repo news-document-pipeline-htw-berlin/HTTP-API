@@ -1,51 +1,35 @@
 package de.htwBerlin.ai.inews.author
 
 import com.typesafe.config.ConfigFactory
-import org.json4s.DefaultFormats
-import reactivemongo.api.bson.collection.BSONCollection
-import reactivemongo.api.{AsyncDriver, MongoConnection}
-import reactivemongo.api.bson.{BSONDocument, BSONHandler, Macros}
+import org.mongodb.scala.MongoClient.DEFAULT_CODEC_REGISTRY
+import org.mongodb.scala.model.Filters.equal
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
-import scala.concurrent._
-import ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Duration, SECONDS}
 object AuthorDBConnector {
+  def findAuthorById(id: String): Seq[Author] = {
+    Await.result(DB.authors.find(equal("_id", id)).toFuture, 10 seconds)
+  }
+}
+
+object DB {
+  import org.bson.codecs.configuration.CodecRegistries._
+  import org.mongodb.scala.bson.codecs.Macros._
+  import org.mongodb.scala.{MongoClient, MongoCollection, MongoDatabase}
+
   private val config = ConfigFactory.load
   private val db = config.getString("mongoDB.authorDB")
   private val coll = config.getString("mongoDB.authorCollection")
+  private val customCodecs = fromProviders(
+    classOf[Author],
+    classOf[AuthorIntMap],
+    classOf[AuthorDoubleMap])
+  private val codecRegistry = fromRegistries(customCodecs,
+    DEFAULT_CODEC_REGISTRY)
 
-  val mongoUri = "mongodb://" + config.getString("mongoDB.host") + ":"+ config.getString("mongoDB.port") + "/" + db
-  val driver = new AsyncDriver()
-
-  val database = for {
-    uri <- MongoConnection.fromString(mongoUri)
-    con <- driver.connect(uri)
-    dn <- Future(uri.db.get)
-    db <- con.database(dn)
-  } yield db
-
-  implicit val formats: DefaultFormats = DefaultFormats
-  implicit val authorHandler: BSONHandler[Author] = Macros.handler[Author]
-
-  /**
-   * Establishes db connection
-   * @param connection
-   * @return
-   */
-  def dbFromConnection(connection: MongoConnection): Future[BSONCollection] =
-    connection.database(db).map(_.collection(coll))
-
-  /**
-   * Finds an author by id in database.
-   * @param id author id
-   * @return Author Document on success
-   */
-  def findAuthorById(id: String): Option[BSONDocument] = {
-    val collection = dbFromConnection(Await.result(database.map(_.connection),
-      Duration(1, SECONDS)))
-
-    val query = BSONDocument("_id" -> id)
-    val doc = Await.result(collection, Duration(1, SECONDS)).find(query).one[BSONDocument]
-    Await.result(doc, Duration(1, SECONDS))
-  }
+  private val authorDatabase: MongoDatabase = MongoClient().getDatabase(db)
+    .withCodecRegistry(codecRegistry)
+  val authors: MongoCollection[Author] = authorDatabase.getCollection(coll)
 }
+

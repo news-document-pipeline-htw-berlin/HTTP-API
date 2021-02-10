@@ -5,8 +5,8 @@ import akka.http.scaladsl.server.Directives.{parameters, pathPrefix, post, _}
 import akka.http.scaladsl.server.{Directives, Route}
 import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 import de.htwBerlin.ai.inews.common.JWT
-import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, UserData, UserService}
-import reactivemongo.api.bson.BSONObjectID
+import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, User, UserData, UserService}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import scala.concurrent.ExecutionContext
 
@@ -55,17 +55,17 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
               userService.getUserData(claims("id").toString)
             }
           } ~
+            put {
+              JWT.authenticated { claims =>
+                entity(as[ChangePasswordRequest]) {
+                  cpr => userService.updatePassword(cpr)
+                }
+              }
+            } ~
           put {
             JWT.authenticated { claims =>
               entity(as[UserData]) {
                 ud => userService.updateUserData(ud, claims("id").toString)
-              }
-            }
-          } ~
-          put {
-            JWT.authenticated { claims =>
-              entity(as[ChangePasswordRequest]) {
-                cpr => userService.updatePassword(cpr)
               }
             }
           }

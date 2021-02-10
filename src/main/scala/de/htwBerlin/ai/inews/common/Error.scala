@@ -4,7 +4,6 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.{Directives, Route}
 import de.htwBerlin.ai.inews.common.Error.{EMAIL_TAKEN, INVALID_PASSWORD, OK, PASSWORD_MISMATCH, SERVER_ERROR, USERNAME_TAKEN, USER_NOT_FOUND}
-import de.htwBerlin.ai.inews.user.JsonSupport
 
 import scala.concurrent.ExecutionContext
 

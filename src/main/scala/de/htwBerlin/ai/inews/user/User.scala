@@ -1,48 +1,45 @@
 package de.htwBerlin.ai.inews.user
 
-import reactivemongo.api.bson.{BSONDocument, BSONDocumentReader, BSONDocumentWriter, BSONObjectID}
-
-import scala.collection.mutable
+import org.mongodb.scala.bson.ObjectId
 import scala.collection.immutable
 import scala.util.{Success, Try}
 
-
 case class User(
-                 id: BSONObjectID,
+                 _id: ObjectId,
                  username: String,
                  email: String,
                  password: String,
                  suggestions: Boolean,
                  darkMode: Boolean,
-                 var keywords: immutable.Map[String, Int])
+                 keywords: immutable.Map[String, Int])
+case class UserData(
+                     _id: String,
+                     username: String,
+                     email: String,
+                     password: String,
+                     suggestions: Boolean,
+                     darkMode: Boolean
+                   )
+case class LoginRequest(
+                         user: String,
+                         password: String,
+                         rememberMe: Boolean )
 
-object User {
+case class AuthRequest(
+                        user: String,
+                        password: String)
 
-  implicit object UserReader extends BSONDocumentReader[User] {
-    override def readDocument(doc: BSONDocument): Try[User] = for {
-      id <- doc.getAsTry[BSONObjectID]("_id")
-      username <- doc.getAsTry[String]("username")
-      email <- doc.getAsTry[String]("email")
-      password <- doc.getAsTry[String]("password")
-      suggestions <- doc.getAsTry[Boolean]("suggestions")
-      darkMode <- doc.getAsTry[Boolean]("darkMode")
-      keywords <- doc.getAsTry[immutable.Map[String, Int]]("keywords")
-    } yield User(id, username, email, password, suggestions, darkMode, keywords)
-  }
+case class SignUpRequest(
+                          username: String,
+                          email: String,
+                          password: String,
+                          password_rep: String)
 
-  implicit object UserWriter extends BSONDocumentWriter[User] {
-    override def writeTry(user: User): Try[BSONDocument] = {
-      Success(
-        BSONDocument(
-          "_id" -> user.id,
-          "username" -> user.username,
-          "email" -> user.email,
-          "password" -> user.password,
-          "suggestions" -> user.suggestions,
-          "darkMode" -> user.darkMode,
-          "keywords" -> user.keywords
-        )
-      )
-    }
-  }
-}
+case class ChangePasswordRequest(
+                                  user: String,
+                                  oldPW: String,
+                                  newPW: String,
+                                  repPW: String)
+
+case class KeyWords(list: List[String])
+case class UserSuggestions(_id: String)
