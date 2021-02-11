@@ -90,7 +90,7 @@ object ArticleHitReader extends HitReader[Article] {
         case shortUrl: String => shortUrl
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("sentiments", 0.0) match {
+      hit.sourceAsMap.getOrElse("sentimens", 0.0) match {
         case sentiments: Double => sentiments
         case _ => 0.0
       }

@@ -197,14 +197,15 @@ class ArticleService()(implicit executionContext: ExecutionContext) {
           )
         )
         .aggs(
-          termsAgg("lemmatizer", "lemmatizer.keyword")
+          // entities make more sense than lemmas...
+          termsAgg("entities", "entities.keyword")
             .size(10)
         )
     }.map { resp: Response[SearchResponse] =>
       if (resp.result.size == 0)
         throw LemmasNotFoundException("No articles found. ")
 
-      val lemmas = resp.result.aggregations.terms("lemmatizer")
+      val lemmas = resp.result.aggregations.terms("entities")
         .buckets.map(bucket => Lemma(bucket.key, bucket.docCount))
 
       Lemmas(lemmas)
