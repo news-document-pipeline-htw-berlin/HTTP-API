@@ -1,21 +1,25 @@
 package de.htwBerlin.ai.inews.http.routes
 
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives.{parameters, pathPrefix, post, _}
 import akka.http.scaladsl.server.{Directives, Route}
 import de.htwBerlin.ai.inews.core.Article.JsonFormat._
 import de.htwBerlin.ai.inews.common.JWT
-import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, User, UserData, UserService}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
+import de.htwBerlin.ai.inews.user.{AuthRequest, ChangePasswordRequest, JsonSupport, KeyWords, LoginRequest, SignUpRequest, UserData, UserService}
 import scala.concurrent.ExecutionContext
 
-
+/**
+ * Defines routes associated with users.
+ *
+ * @param userService
+ * @param executionContext
+ */
 class Users(userService: UserService)(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
+
   final val route: Route = {
     pathPrefix("users") {
-      // /api/users/account
       pathPrefix("account") {
+        // /api/users/account?account={account}
+        // DELETE user account (requires AuthRequest and JWT)
         delete {
           JWT.authenticated { claims =>
             parameters(
@@ -33,6 +37,8 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
             }
           }
         } ~
+          // /api/users/account?data={data}
+          // DELETE user data (requires AuthRequest and JWT)
           delete {
             JWT.authenticated { claims =>
               parameters(
@@ -50,18 +56,24 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
               }
             }
           } ~
+          // /api/users/account
+          // GET user data (requires JWT)
           get {
             JWT.authenticated { claims =>
               userService.getUserData(claims("id").toString)
             }
           } ~
-            put {
-              JWT.authenticated { claims =>
-                entity(as[ChangePasswordRequest]) {
-                  cpr => userService.updatePassword(cpr)
-                }
+          // /api/users/account
+          // PUT new password (requires ChangePasswordRequest and JWT)
+          put {
+            JWT.authenticated { claims =>
+              entity(as[ChangePasswordRequest]) {
+                cpr => userService.updatePassword(cpr)
               }
-            } ~
+            }
+          } ~
+          // /api/users/account
+          // PUT new user data (requires UserData and JWT)
           put {
             JWT.authenticated { claims =>
               entity(as[UserData]) {
@@ -70,12 +82,16 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
             }
           }
       } ~
+        // /api/users/keywords
+        // GET user keyword count (requires JWT)
         pathPrefix("keywords") {
           JWT.authenticated { claims =>
-            userService.getKeywords(claims("id").toString)
+            userService.getKeywordCount(claims("id").toString)
           }
         } ~
         pathPrefix("suggestions") {
+          // /api/users/suggestions
+          // PUT keywords (requires KeyWords and JWT)
           put {
             JWT.authenticated { claims =>
               entity(as[KeyWords]) {
@@ -84,13 +100,15 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
 
             }
           } ~
-            get (
+            // /api/users/suggestions?offset={offset}&count={count}
+            // GET suggestions (requires JWT)
+            get(
               JWT.authenticated { claims =>
-              parameters(
-                "offset" ? 0,
-                "count" ? 20
-              ) {
-                (offset, count) => {
+                parameters(
+                  "offset" ? 0,
+                  "count" ? 20
+                ) {
+                  (offset, count) => {
                     val suggestions = userService.getSuggestionsByKeywords(claims("id").toString, offset, count)
                     complete(suggestions)
                   }
@@ -98,27 +116,21 @@ class Users(userService: UserService)(implicit executionContext: ExecutionContex
               }
             )
         } ~
-        // /api/users/login
         pathPrefix("login") {
+          // /api/users/login
+          // POST login data (requires LoginRequest)
           post {
             entity(as[LoginRequest]) {
               lr => userService.handleLogin(lr)
             }
           }
         } ~
-        // /api/users/signup
         pathPrefix("signup") {
+          // /api/users/signup
+          // POST signup data (requires SignUpRequest)
           post {
             entity(as[SignUpRequest]) {
               sur => userService.handleSignUp(sur)
-            }
-          }
-        } ~
-        // /api/users/auth
-        pathPrefix("auth") {
-          post {
-            entity(as[LoginRequest]) {
-              lr => userService.isAuth(lr)
             }
           }
         }

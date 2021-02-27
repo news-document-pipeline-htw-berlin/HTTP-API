@@ -1,14 +1,30 @@
 package de.htwBerlin.ai.inews.author
 
+/**
+ * Map for daysPublished / lastTexts / perDepartment.
+ *
+ * @param _1 key (weekday / weekday / department)
+ * @param _2 value (amount / word count / department)
+ */
 final case class AuthorIntMap(
-                            _1: String,
-                            _2: Int
-                          )
-final case class AuthorDoubleMap(
                                _1: String,
-                               _2: Double
+                               _2: Int
                              )
 
+/**
+ * Map for sentimentPerDay / sentimentPerDepartment.
+ *
+ * @param _1 key (weekday / department)
+ * @param _2 value (sentiment score)
+ */
+final case class AuthorDoubleMap(
+                                  _1: String,
+                                  _2: Double
+                                )
+
+/**
+ * Representation of author entity.
+ */
 final case class Author(
                          _id: String,
                          articles: Int,

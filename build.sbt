@@ -20,12 +20,10 @@ libraryDependencies ++= Seq(
     /* JSON Serialization */
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaVersion,
 
-
     "com.sksamuel.elastic4s" %% "elastic4s-core" % elastic4sVersion,
     "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion, // default http client
 
     /* authentication */
-    // https://mvnrepository.com/artifact/com.jason-goodwin/authentikat-jwt
     "com.jason-goodwin" %% "authentikat-jwt" % "0.4.5",
 
     /* SLF4J backend, logback recommended by Akka docs */
@@ -35,8 +33,7 @@ libraryDependencies ++= Seq(
     /* BCrypt for password */
     "org.mindrot" % "jbcrypt" % "0.3m",
 
-    // https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
-    // Classic MongoDB Driver
+    /* Official MongoDB Driver */
     "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.0"
 
 )

@@ -7,12 +7,23 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+/**
+ * Connector for interactions with author collection in mongoDB.
+ */
 object AuthorDBConnector {
-  def findAuthorById(id: String): Seq[Author] = {
-    Await.result(DB.authors.find(equal("_id", id)).toFuture, 10 seconds)
+  /**
+   * Finds author with given id in database.
+   * @param id author name
+   * @return author or none
+   */
+  def findAuthorById(id: String): Option[Author] = {
+    Await.result(DB.authors.find(equal("_id", id)).toFuture, 10 seconds).headOption
   }
 }
 
+/**
+ * Establishes connection with author collection in mongoDB.
+ */
 object DB {
   import org.bson.codecs.configuration.CodecRegistries._
   import org.mongodb.scala.bson.codecs.Macros._

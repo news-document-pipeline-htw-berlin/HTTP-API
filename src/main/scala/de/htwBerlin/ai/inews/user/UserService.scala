@@ -1,143 +1,23 @@
 package de.htwBerlin.ai.inews.user
 
-import java.util.concurrent.TimeUnit
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{DateTime, StatusCodes}
-import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.headers.HttpCookie
+import akka.http.scaladsl.model.{DateTime, StatusCodes}
 import akka.http.scaladsl.server.{Directives, Route}
-import authentikat.jwt.{JsonWebToken, JwtClaimsSet, JwtHeader}
 import de.htwBerlin.ai.inews.common.{Error, JWT}
 import de.htwBerlin.ai.inews.core.Article.ArticleList
 import de.htwBerlin.ai.inews.data.ArticleService
-import org.mindrot.jbcrypt.BCrypt
 import org.bson.types.ObjectId
-import org.mongodb.scala.Document
+import org.mindrot.jbcrypt.BCrypt
 import org.mongodb.scala.bson.BsonObjectId
 
-import scala.concurrent.duration.{Duration, SECONDS}
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Service for handling user related requests
+ * Service for handling user related requests.
  *
  * @param executionContext executionContext
  */
 class UserService(articleService: ArticleService)(implicit executionContext: ExecutionContext) extends Directives with JsonSupport {
-  /**
-   * Extracts the ID string from a BSONObjectID
-   *
-   * @param id BSONObjectID
-   * @return string of ID
-   */
-  private def convertId(id: ObjectId): String = {
-    val str = id.toString
-    str.substring(str.indexOf('(') + 1, str.indexOf(')'))
-  }
-
-  /**
-   * Creates a new user in database
-   *
-   * @param sur signup data
-   */
-  private def createUser(sur: SignUpRequest) = {
-    val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
-    val user = User(
-      ObjectId.get(),
-      sur.username,
-      sur.email,
-      hashedPassword,
-      suggestions = true,
-      darkMode = false,
-      Map.empty
-    )
-    UserDBConnector.insertDocument(user)
-  }
-
-  /**
-   * Updates given user in database.
-   *
-   * @param user user
-   */
-  private def updateUser(user: User): Unit = {
-    UserDBConnector.updateDocument(user, user._id)
-  }
-
-  /**
-   * Deletes given user in database.
-   *
-   * @param id user's id
-   */
-  private def deleteUser(id: ObjectId): Unit = {
-    UserDBConnector.deleteDocument(id)
-  }
-
-  /**
-   * Finds a user by username and returns the corresponding object
-   *
-   * @param username username
-   * @return user object
-   */
-  private def getUserObjectByUsername(username: String): Seq[User] = {
-    UserDBConnector.findUserByUsername(username)
-  }
-
-  /**
-   * Finds a user by email and returns the corresponding object
-   *
-   * @param email email
-   * @return user object
-   */
-  private def getUserObjectByEmail(email: String): Seq[User] = {
-    UserDBConnector.findUserByEmail(email)
-  }
-
-  /**
-   * Finds a user by id and returns the corresponding object
-   *
-   * @param id id
-   * @return user object
-   */
-  private def getUserObjectById(id: ObjectId): Seq[User] = {
-    UserDBConnector.findUserById(id)
-  }
-
-  /**
-   * Checks if given username and password are valid.
-   *
-   * @param username username
-   * @param password password
-   * @return error value
-   */
-  private def validateCredentials(username: String, password: String): Error.Value = {
-    val user = getUserObjectByUsername(username)
-    if (user.isEmpty)
-      return Error.USER_NOT_FOUND
-    if (!BCrypt.checkpw(password, user.head.password))
-      return Error.INVALID_PASSWORD
-    Error.OK
-  }
-
-  /**
-   * Checks if signup data is valid.
-   *
-   * @param sur signup data
-   * @return error value
-   */
-  private def validateSignUp(sur: SignUpRequest): Error.Value = {
-    var user = getUserObjectByUsername(sur.username)
-    if (user.nonEmpty)
-      return Error.USERNAME_TAKEN
-
-    user = getUserObjectByEmail(sur.email)
-    if (user.nonEmpty)
-      return Error.EMAIL_TAKEN
-
-    if (sur.password != sur.password_rep)
-      return Error.PASSWORD_MISMATCH
-
-    Error.OK
-  }
 
   /**
    * Handles a login request.
@@ -149,10 +29,14 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     val e = validateCredentials(lr.user, lr.password)
     e match {
       case Error.OK =>
-        val user = getUserObjectByUsername(lr.user).head
+        val user = UserDBConnector.findUserByUsername(lr.user).get
         val expires = Option(if (lr.rememberMe) DateTime.MaxValue else null)
-        val jwtToken = JWT.generateToken(user.username, user._id.toString, rememberMe = lr.rememberMe,
-          darkMode = user.darkMode, suggestions = user.suggestions)
+        val jwtToken = JWT.generateToken(
+          user.username,
+          user._id.toString,
+          rememberMe = lr.rememberMe,
+          darkMode = user.darkMode,
+          suggestions = user.suggestions)
         setCookie(HttpCookie("accessToken", value = jwtToken, path = Option("/"), expires = expires)) {
           complete(StatusCodes.OK, "Logged in successfully.")
         }
@@ -169,13 +53,52 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
   def handleSignUp(sur: SignUpRequest): Route = {
     val e = validateSignUp(sur)
     e match {
-      case Error.OK => {
+      case Error.OK =>
         createUser(sur)
         complete(StatusCodes.OK, "A new account for " + sur.username + " was created.")
-      }
       case _ =>
         Error.processError(e)
     }
+  }
+
+  /**
+   * Creates a new user in database.
+   *
+   * @param sur signup data
+   */
+  private def createUser(sur: SignUpRequest): Unit = {
+    val hashedPassword = BCrypt.hashpw(sur.password, BCrypt.gensalt())
+    val user = User(
+      ObjectId.get(),
+      sur.username,
+      sur.email,
+      hashedPassword,
+      suggestions = true,
+      darkMode = false,
+      Map.empty
+    )
+    UserDBConnector.insertDocument(user)
+  }
+
+  /**
+   * Checks if signup data is valid.
+   *
+   * @param sur signup data
+   * @return error value
+   */
+  private def validateSignUp(sur: SignUpRequest): Error.Value = {
+    var user = UserDBConnector.findUserByUsername(sur.username)
+    if (user.isDefined)
+      return Error.USERNAME_TAKEN
+
+    user = UserDBConnector.findUserByEmail(sur.email)
+    if (user.isDefined)
+      return Error.EMAIL_TAKEN
+
+    if (sur.password != sur.password_rep)
+      return Error.PASSWORD_MISMATCH
+
+    Error.OK
   }
 
   /**
@@ -185,12 +108,18 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @return user in body on success
    */
   def getUserData(id: String): Route = {
-    val user = getUserObjectById(BsonObjectId.apply(id).getValue)
+    val user = UserDBConnector.findUserById(BsonObjectId.apply(id).getValue)
     if (user.isEmpty)
       return complete(StatusCodes.NotFound, "User with id '" + id + "' could not be found.")
 
-    val data = user.head
-    complete(UserData(data._id.toString, data.username, data.email, data.password, data.suggestions, data.darkMode))
+    val data = user.get
+    complete(UserData(
+      data._id.toString,
+      data.username,
+      data.email,
+      data.password,
+      data.suggestions,
+      data.darkMode))
   }
 
   /**
@@ -204,11 +133,11 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
       complete(StatusCodes.Unauthorized, "Unauthorized to alter user data.")
     }
 
-    val list = getUserObjectById(BsonObjectId.apply(ud._id).getValue)
-    if (list.isEmpty)
+    val opt = UserDBConnector.findUserById(BsonObjectId.apply(ud._id).getValue)
+    if (opt.isEmpty)
       complete(StatusCodes.NotFound, "User with id '" + ud._id + "' could not be found.")
 
-    val user = list.head
+    val user = opt.get
     updateUser(User(user._id, user.username, ud.email, user.password, ud.suggestions, ud.darkMode, user.keywords))
     complete(StatusCodes.OK, "User Data for '" + ud.username + "' has been updated.")
   }
@@ -227,10 +156,10 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
           return complete(StatusCodes.BadRequest, "Password mismatch.")
         }
         val hashedPassword = BCrypt.hashpw(cpr.newPW, BCrypt.gensalt())
-        val list = getUserObjectByUsername(cpr.user)
-        if (list.isEmpty)
+        val opt = UserDBConnector.findUserByUsername(cpr.user)
+        if (opt.isEmpty)
           complete(StatusCodes.NotFound, "User '" + cpr.user + "' could not be found.")
-        val user = list.head
+        val user = opt.get
         updateUser(User(user._id, user.username, user.email, hashedPassword, user.suggestions, user.darkMode, user.keywords))
         complete(StatusCodes.OK, "Password for '" + cpr.user + "' has been changed.")
       }
@@ -240,13 +169,28 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
   }
 
   /**
-   * Checks credentials of login request.
+   * Checks if given username and password are valid.
    *
-   * @param lr login request
-   * @return status code
+   * @param username username
+   * @param password password
+   * @return error value
    */
-  def isAuth(lr: LoginRequest): Route = {
-    Error.processError(validateCredentials(lr.user, lr.password))
+  private def validateCredentials(username: String, password: String): Error.Value = {
+    val user = UserDBConnector.findUserByUsername(username)
+    if (user.isEmpty)
+      return Error.USER_NOT_FOUND
+    if (!BCrypt.checkpw(password, user.head.password))
+      return Error.INVALID_PASSWORD
+    Error.OK
+  }
+
+  /**
+   * Updates given user in database.
+   *
+   * @param user user
+   */
+  private def updateUser(user: User): Unit = {
+    UserDBConnector.updateDocument(user, user._id)
   }
 
   /**
@@ -259,12 +203,12 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     val e = validateCredentials(ar.user, ar.password)
     e match {
       case Error.OK =>
-        val list = getUserObjectByUsername(ar.user)
-        if (list.isEmpty)
+        val opt = UserDBConnector.findUserByUsername(ar.user)
+        if (opt.isEmpty)
           complete(StatusCodes.NotFound, "User '" + ar.user + "' could not be found.")
-        val user = getUserObjectByUsername(ar.user).head
-        updateUser(user)
-        complete(StatusCodes.OK, "Data of " + ar.user + " has been deleted.")
+        val user = opt.get
+        UserDBConnector.deleteDocument(user._id)
+        complete(StatusCodes.NoContent, "User " + ar.user + " has been deleted.")
       case _ =>
         Error.processError(e)
     }
@@ -280,10 +224,10 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     val e = validateCredentials(ar.user, ar.password)
     e match {
       case Error.OK =>
-        val list = getUserObjectByUsername(ar.user)
-        if (list.isEmpty)
+        val opt = UserDBConnector.findUserByUsername(ar.user)
+        if (opt.isEmpty)
           complete(StatusCodes.NotFound, "User '" + ar.user + "' could not be found.")
-        val user = list.head
+        val user = opt.get
         updateUser(User(user._id, user.username, user.email, user.password, user.suggestions, user.darkMode, Map.empty))
         complete(StatusCodes.OK, "Account for " + ar.user + " and all its data has been deleted.")
       case _ =>
@@ -297,18 +241,26 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
    * @param id id of requesting user
    * @return count of keywords
    */
-  def getKeywords(id: String): Route = {
+  def getKeywordCount(id: String): Route = {
     complete(StatusCodes.OK, getKeywordsFromUser(id).size.toString)
   }
 
+  /**
+   * Updates keyword map for given user.
+   *
+   * @param userId   user
+   * @param keyWords list of keywords
+   * @return HTTP 204
+   */
   def updateKeywords(userId: String, keyWords: KeyWords): Route = {
-    //TODO: Schön machen
     val keyWordsList = keyWords.list.map(_.toLowerCase)
-    val user = getUserObjectById(BsonObjectId.apply(userId).getValue).head
-    //val newWords = scala.collection.mutable.Map.empty[String, Int]
+    val opt = UserDBConnector.findUserById(BsonObjectId.apply(userId).getValue)
+    if (opt.isEmpty)
+      return complete(StatusCodes.NotFound, "User " + userId + " not found.")
+
+    val user = opt.get
     val newWords = collection.mutable.Map(user.keywords.toSeq: _*)
     (user.keywords.keys.toList ++ keyWords.list).map(_.toLowerCase).foreach(w => {
-      //val value = if(keyWords.list.contains(w)) 1 else 0
       if (keyWordsList.contains(w) && user.keywords.keySet.contains(w)) {
         newWords.update(w, user.keywords(w) + 1)
       } else if (user.keywords.keySet.contains(w)) {
@@ -321,13 +273,29 @@ class UserService(articleService: ArticleService)(implicit executionContext: Exe
     complete(StatusCodes.NoContent)
   }
 
-  def getKeywordsFromUser(userID: String): Map[String, Int] = {
-    val user = getUserObjectById(BsonObjectId.apply(userID).getValue).head
-    user.keywords
-  }
-
+  /**
+   * Retrieves article suggestions for given user.
+   *
+   * @param userID user
+   * @param offset defined by page selection in frontend
+   * @param count  amount of articles per page
+   * @return list of articles
+   */
   def getSuggestionsByKeywords(userID: String, offset: Int, count: Int): Future[ArticleList] = {
     val keywords = getKeywordsFromUser(userID)
     articleService.getArticlesByKeywords(keywords, offset, count)
+  }
+
+  /**
+   * Retrieves the keywords for given user.
+   *
+   * @param userID user
+   * @return map of keywords
+   */
+  def getKeywordsFromUser(userID: String): Map[String, Int] = {
+    val user = UserDBConnector.findUserById(BsonObjectId.apply(userID).getValue)
+    if (user.isDefined)
+      return user.get.keywords
+    Map.empty
   }
 }

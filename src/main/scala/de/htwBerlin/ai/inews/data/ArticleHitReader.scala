@@ -90,6 +90,7 @@ object ArticleHitReader extends HitReader[Article] {
         case shortUrl: String => shortUrl
         case _ => ""
       },
+      // IMPORTANT: this field may sometimes be named "sentiments" in mongoDB. Check DB if this field always contains 0.
       hit.sourceAsMap.getOrElse("sentimens", 0.0) match {
         case sentiments: Double => sentiments
         case _ => 0.0
