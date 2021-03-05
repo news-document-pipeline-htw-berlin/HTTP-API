@@ -6,6 +6,7 @@ import org.joda.time.DateTime
 
 import scala.util.Try
 
+// see https://github.com/news-document-pipeline-htw-berlin/Analytics -> MongoDB Cheat Sheet for field names
 object ArticleHitReader extends HitReader[Article] {
   override def read(hit: Hit): Try[Article] = {
     Try(Article(
@@ -70,7 +71,7 @@ object ArticleHitReader extends HitReader[Article] {
         case text: String => text
         case _ => ""
       },
-      hit.sourceAsMap.getOrElse("textSum", "") match {
+      hit.sourceAsMap.getOrElse("textsum", "") match {
         case textSum: String => textSum
         case _ => ""
       },
@@ -90,8 +91,7 @@ object ArticleHitReader extends HitReader[Article] {
         case shortUrl: String => shortUrl
         case _ => ""
       },
-      // IMPORTANT: this field may sometimes be named "sentiments" in mongoDB. Check DB if this field always contains 0.
-      hit.sourceAsMap.getOrElse("sentimens", 0.0) match {
+      hit.sourceAsMap.getOrElse("sentiments", 0.0) match {
         case sentiments: Double => sentiments
         case _ => 0.0
       }
